@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History / Audit Trail - CCPL Tank Operations</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Firebase SDK v9+ (modular) -->
+    <script type="module">
+        // Firebase configuration - REPLACE WITH YOUR CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyAc5MbNDFArI8wiZ9T89vWqB77DfM1mqnU",
+            authDomain: "ccpl-tank-operations.firebaseapp.com",
+            projectId: "ccpl-tank-operations",
+            storageBucket: "ccpl-tank-operations.firebasestorage.app",
+            messagingSenderId: "152975814174",
+            appId: "1:152975814174:web:6a007b82d6388877de480f",
+            measurementId: "G-V0TZEEWDWC"
+        };
+        
+        // Dynamically import Firebase modules
+        Promise.all([
+            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js'),
+            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
+        ]).then(([firebaseApp, firestore]) => {
+            // Initialize Firebase
+            const app = firebaseApp.initializeApp(firebaseConfig);
+            const db = firestore.getFirestore(app);
+            
+            // Make Firebase functions available globally
+            window.firebaseDB = {
+                db,
+                collection: firestore.collection,
+                addDoc: firestore.addDoc,
+                getDocs: firestore.getDocs,
+                getDoc: firestore.getDoc,
+                doc: firestore.doc,
+                updateDoc: firestore.updateDoc,
+                deleteDoc: firestore.deleteDoc,
+                onSnapshot: firestore.onSnapshot,
+                query: firestore.query,
+                where: firestore.where,
+                orderBy: firestore.orderBy,
+                serverTimestamp: firestore.serverTimestamp
+            };
+            
+            // Initialize Firebase connection status
+            window.firebaseInitialized = true;
+            console.log("Firebase initialized successfully");
+        }).catch(error => {
+            console.error("Error initializing Firebase:", error);
+            window.firebaseInitialized = false;
+        });
+    </script>
+    <style>
+        :root {
+            --blue: #1d4ed8;
+            --blue-dark: #0f2b6c;
+            --blue-light: #3b82f6;
+            --blue-lighter: #60a5fa;
+            --accent: #0ea5e9;
+            --accent-light: #38bdf8;
+            --slate: #4a5568;
+            --slate-light: #64748b;
+            --bg: #f0f4f8;
+            --bg-light: #f8fafc;
+            --card: #ffffff;
+            --border: #cbd5e0;
+            --border-light: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+        * { 
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, var(--bg-light) 100%);
+            color: var(--slate);
+            line-height: 1.6;
+        }
+        .page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05), 0 10px 25px rgba(0,0,0,0.08);
+            border: 1px solid var(--border-light);
+            transition: box-shadow 0.3s ease, transform 0.2s ease;
+        }
+        .card:hover {
+            box-shadow: 0 8px 12px rgba(0,0,0,0.08), 0 15px 35px rgba(0,0,0,0.12);
+        }
+        .hero {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px 28px;
+            background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 50%, var(--accent) 100%);
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(29, 78, 216, 0.3);
+        }
+        .hero-title h1 { 
+            margin: 0; 
+            color: #fff; 
+            font-size: 1.75rem; 
+            letter-spacing: 0.5px; 
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .hero-title p { 
+            margin: 6px 0 0; 
+            color: #e0e8ff; 
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        .brand-mark { 
+            display:flex; 
+            align-items:center; 
+            gap:14px; 
+            font-weight:700; 
+        }
+        .brand-mark .logo-dot { 
+            width:48px; 
+            height:48px; 
+            border-radius:50%; 
+            background:#fff; 
+            color:var(--blue-dark); 
+            display:flex; 
+            align-items:center; 
+            justify-content:center; 
+            font-weight:800; 
+            font-size: 1.1rem;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .stock-panel {
+            padding: 24px;
+        }
+        .stock-panel h2, .stock-panel h3 { 
+            margin: 0 0 16px 0; 
+            color: var(--blue-dark); 
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .form-row { 
+            display:flex; 
+            gap:16px; 
+            flex-wrap:wrap; 
+            margin-bottom:16px; 
+            align-items: flex-end;
+        }
+        .form-row label { 
+            font-weight:600; 
+            font-size:0.95rem; 
+            color:#1f2937; 
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-row input, .form-row select {
+            padding: 10px 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            min-width: 180px;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            background: white;
+        }
+        .form-row input:focus, .form-row select:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+        }
+        table.stock-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            margin-top: 12px;
+        }
+        table.stock-table th, table.stock-table td {
+            border: 1px solid var(--border-light);
+            padding: 12px;
+            text-align: left;
+        }
+        table.stock-table th {
+            background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
+            color: #fff;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+        table.stock-table tbody tr {
+            transition: background 0.2s ease;
+        }
+        table.stock-table tbody tr:hover {
+            background: #f0f7ff;
+        }
+        table.stock-table input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        table.stock-table input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.1);
+        }
+        .btn {
+            background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(29, 78, 216, 0.2);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(29, 78, 216, 0.3);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn.secondary { 
+            background: linear-gradient(135deg, var(--slate) 0%, var(--slate-light) 100%);
+            box-shadow: 0 4px 6px rgba(74, 85, 104, 0.2);
+        }
+        .btn.secondary:hover {
+            box-shadow: 0 6px 12px rgba(74, 85, 104, 0.3);
+        }
+        /* Login Page Styles */
+        #loginPage {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 50%, var(--accent) 100%);
+            padding: 20px;
+        }
+        .login-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 450px;
+            width: 100%;
+        }
+        .login-card h1 {
+            color: var(--blue-dark);
+            margin-bottom: 10px;
+            font-size: 1.8rem;
+            text-align: center;
+        }
+        .login-card p {
+            color: var(--slate);
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .login-form input {
+            padding: 14px 18px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+        .login-form input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+        }
+        .login-btn {
+            background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(29, 78, 216, 0.2);
+        }
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(29, 78, 216, 0.3);
+        }
+        .login-error {
+            color: var(--error);
+            font-size: 0.9rem;
+            margin-top: -10px;
+            text-align: center;
+        }
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        /* Modal/Popup Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .modal h3 {
+            color: var(--blue-dark);
+            margin-bottom: 16px;
+            font-size: 1.3rem;
+        }
+        .modal-close {
+            float: right;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--slate);
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+        @media (max-width: 768px) {
+            .page {
+                padding: 12px;
+                gap: 12px;
+            }
+            .hero {
+                padding: 16px;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .hero-title h1 {
+                font-size: 1.4rem;
+            }
+            .stock-panel {
+                padding: 16px;
+            }
+            .form-row {
+                flex-direction: column;
+                gap: 12px;
+            }
+            .form-row label {
+                width: 100%;
+            }
+            .form-row input, .form-row select {
+                width: 100%;
+                min-width: auto;
+            }
+            table.stock-table {
+                font-size: 0.8rem;
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+            table.stock-table th, table.stock-table td {
+                padding: 8px 6px;
+            }
+            .btn {
+                padding: 10px 16px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage">
+        <div class="login-card">
+            <h1>CCPL Tank Operations</h1>
+            <p>Cognizant Chemical Pvt. Ltd.</p>
+            <form class="login-form" onsubmit="handleLogin(event)">
+                <input type="text" id="loginUsername" placeholder="Username" required autocomplete="username">
+                <input type="password" id="loginPassword" placeholder="Password" required autocomplete="current-password">
+                <div class="login-error" id="loginError"></div>
+                <button type="submit" class="login-btn">Login</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Main Application -->
+    <div id="mainApp" style="display: none;">
+    <div class="page">
+        <div class="card hero">
+            <div class="brand-mark">
+                <div class="logo-dot">CC</div>
+                <div class="hero-title">
+                    <h1>History / Audit Trail</h1>
+                    <p>Cognizant Chemical Pvt. Ltd.</p>
+                </div>
+            </div>
+            <div style="display: flex; gap: 16px; align-items: center;">
+                <button class="btn secondary" onclick="window.location.href='index.html'">Back to Main</button>
+                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+            </div>
+        </div>
+
+        <div class="card stock-panel" id="historyPanel">
+            <h3>History / Audit Trail</h3>
+            <div class="form-row">
+                <label>Search <input id="historySearch" type="text" placeholder="Filter history"></label>
+                <button class="btn secondary" onclick="exportCSV()">Export CSV</button>
+                <label class="btn secondary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+                    Import CSV
+                    <input id="importCSVInput" type="file" accept=".csv" style="display:none;" onchange="importCSV(event)">
+                </label>
+            </div>
+            <table class="stock-table" id="historyTable">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Operator</th>
+                        <th>Shift</th>
+                        <th>Total KL</th>
+                        <th>Remarks</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    </div>
+
+    <!-- PDF Preview Modal -->
+    <div id="pdfPreviewModal" class="modal-overlay" onclick="if(event.target.id === 'pdfPreviewModal') closePDFPreviewModal()">
+        <div class="modal" style="max-width: 90%; max-height: 90vh;">
+            <button class="modal-close" onclick="closePDFPreviewModal()">&times;</button>
+            <h3>PDF Preview</h3>
+            <div style="text-align: center; margin: 20px 0;">
+                <p>PDF preview is generated on download. Click Download to save the PDF file.</p>
+                <button class="btn" onclick="downloadCurrentPreviewPDF()">Download PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Entry Modal -->
+    <div id="editEntryModal" class="modal-overlay" onclick="if(event.target.id === 'editEntryModal') closeEditModal()">
+        <div class="modal" style="max-width: 900px;">
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            <h3>Edit Stock Entry</h3>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <label>
+                    Operator:
+                    <input type="text" id="editOperator" style="width: 100%; padding: 10px; margin-top: 6px; border: 2px solid var(--border); border-radius: 8px;">
+                </label>
+                <label>
+                    Shift:
+                    <select id="editShift" style="width: 100%; padding: 10px; margin-top: 6px; border: 2px solid var(--border); border-radius: 8px;">
+                        <option value="">Select shift</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="General">General</option>
+                    </select>
+                </label>
+                <label>
+                    Remarks:
+                    <input type="text" id="editRemarks" style="width: 100%; padding: 10px; margin-top: 6px; border: 2px solid var(--border); border-radius: 8px;">
+                </label>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="stock-table" style="font-size: 0.85rem;">
+                        <thead>
+                            <tr>
+                                <th>Tank</th>
+                                <th>Capacity</th>
+                                <th>Level</th>
+                                <th>Material</th>
+                                <th>GRN #</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="editStockDataBody"></tbody>
+                    </table>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn" onclick="saveEditedEntry()" style="flex: 1;">Save Changes</button>
+                    <button class="btn secondary" onclick="closeEditModal()" style="flex: 1;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEYS = {
+            CURRENT: "ccpl-current",
+            HISTORY: "ccpl-history",
+            PRODUCTION: "ccpl-production",
+            PRODUCTION_HISTORY: "ccpl-production-history"
+        };
+        
+        // Firebase collections
+        const FIREBASE_COLLECTIONS = {
+            STOCK_ENTRIES: "stockEntries",
+            PRODUCTION_ENTRIES: "productionEntries"
+        };
+        
+        // Firebase initialization check
+        let firebaseReady = false;
+        const checkFirebaseReady = () => {
+            if (window.firebaseDB && window.firebaseInitialized) {
+                firebaseReady = true;
+                return true;
+            }
+            return false;
+        };
+        
+        // Wait for Firebase to initialize
+        const waitForFirebase = (callback, maxAttempts = 50) => {
+            let attempts = 0;
+            const checkInterval = setInterval(() => {
+                attempts++;
+                if (checkFirebaseReady()) {
+                    clearInterval(checkInterval);
+                    callback();
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    console.warn("Firebase initialization timeout. Using localStorage fallback.");
+                }
+            }, 100);
+        };
+
+        // Get current user ID from authentication
+        function getCurrentUserId() {
+            const auth = localStorage.getItem('ccpl-auth');
+            if (auth) {
+                try {
+                    const authData = JSON.parse(auth);
+                    if (authData.user && authData.expires > Date.now()) {
+                        return authData.user;
+                    }
+                } catch (e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        // Login System
+        const VALID_USERS = {
+            'production1': 'prod1@2024',
+            'production2': 'prod2@2024',
+            'production3': 'prod3@2024',
+            'production4': 'prod4@2024',
+            'production5': 'prod5@2024'
+        };
+        
+        function checkAuth() {
+            const auth = localStorage.getItem('ccpl-auth');
+            if (auth) {
+                try {
+                    const authData = JSON.parse(auth);
+                    if (authData.user && VALID_USERS[authData.user] && authData.expires > Date.now()) {
+                        document.getElementById('loginPage').style.display = 'none';
+                        document.getElementById('mainApp').style.display = 'block';
+                        return true;
+                    }
+                } catch (e) {
+                    localStorage.removeItem('ccpl-auth');
+                }
+            }
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('mainApp').style.display = 'none';
+            return false;
+        }
+        
+        function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim().toLowerCase();
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            if (VALID_USERS[username] && VALID_USERS[username] === password) {
+                const authData = {
+                    user: username,
+                    expires: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+                };
+                localStorage.setItem('ccpl-auth', JSON.stringify(authData));
+                errorDiv.textContent = '';
+                checkAuth();
+                // Initialize history table after login
+                waitForFirebase(() => {
+                    buildHistoryTable();
+                });
+            } else {
+                errorDiv.textContent = 'Invalid username or password';
+                document.getElementById('loginPassword').value = '';
+            }
+        }
+        
+        function handleLogout() {
+            localStorage.removeItem('ccpl-auth');
+            checkAuth();
+        }
+
+        function buildHistoryTable() {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                console.warn("User not authenticated");
+                // Still try to load from localStorage as fallback
+                const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
+                currentHistoryData = raw ? JSON.parse(raw) : [];
+                renderHistory(currentHistoryData);
+                return;
+            }
+            if (checkFirebaseReady()) {
+                // Set up real-time listener for Firebase
+                setupFirebaseHistoryListener();
+            } else {
+                // Fallback to localStorage
+                const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
+                currentHistoryData = raw ? JSON.parse(raw) : [];
+                renderHistory(currentHistoryData);
+                const search = document.getElementById('historySearch');
+                if (search) {
+                    search.addEventListener('input', (e) => {
+                        renderHistory(currentHistoryData, e.target.value);
+                    });
+                }
+            }
+        }
+        
+        let currentHistoryData = [];
+        let currentPreviewEntryId = null;
+        
+        function setupFirebaseHistoryListener() {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                console.warn("User not authenticated");
+                // Fallback to localStorage
+                const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
+                currentHistoryData = raw ? JSON.parse(raw) : [];
+                renderHistory(currentHistoryData);
+                return;
+            }
+            try {
+                const { collection, onSnapshot, query, where, orderBy } = window.firebaseDB;
+                const entriesRef = collection(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES);
+                
+                // Try query with where and orderBy (requires composite index)
+                // If index doesn't exist, onSnapshot will fail and we'll use fallback
+                const q = query(entriesRef, where('userId', '==', userId), orderBy('createdAt', 'desc'));
+                
+                // Real-time listener
+                onSnapshot(q, (snapshot) => {
+                    currentHistoryData = [];
+                    snapshot.forEach((docSnap) => {
+                        const data = docSnap.data();
+                        currentHistoryData.push({
+                            id: docSnap.id,
+                            ...data,
+                            displayTime: data.displayTime || (data.dateTime ? new Date(data.dateTime).toLocaleString() : ''),
+                            timestamp: data.timestamp || data.dateTime || ''
+                        });
+                    });
+                    renderHistory(currentHistoryData);
+                }, (error) => {
+                    console.error("Error listening to Firebase (may need composite index):", error);
+                    // If error is about missing index, try query without orderBy
+                    if (error.code === 'failed-precondition' || error.message?.includes('index')) {
+                        console.log("Trying query without orderBy (will sort client-side)");
+                        try {
+                            const q2 = query(entriesRef, where('userId', '==', userId));
+                            onSnapshot(q2, (snapshot) => {
+                                currentHistoryData = [];
+                                snapshot.forEach((docSnap) => {
+                                    const data = docSnap.data();
+                                    currentHistoryData.push({
+                                        id: docSnap.id,
+                                        ...data,
+                                        displayTime: data.displayTime || (data.dateTime ? new Date(data.dateTime).toLocaleString() : ''),
+                                        timestamp: data.timestamp || data.dateTime || ''
+                                    });
+                                });
+                                // Sort by createdAt descending client-side
+                                currentHistoryData.sort((a, b) => {
+                                    const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || (a.timestamp ? new Date(a.timestamp).getTime() : 0));
+                                    const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || (b.timestamp ? new Date(b.timestamp).getTime() : 0));
+                                    return bTime - aTime;
+                                });
+                                renderHistory(currentHistoryData);
+                            }, (error2) => {
+                                console.error("Error with fallback query:", error2);
+                                // Final fallback to localStorage
+                                const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                                const raw = localStorage.getItem(storageKey);
+                                currentHistoryData = raw ? JSON.parse(raw) : [];
+                                renderHistory(currentHistoryData);
+                            });
+                        } catch (e) {
+                            console.error("Error setting up fallback query:", e);
+                            // Final fallback to localStorage
+                            const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                            const raw = localStorage.getItem(storageKey);
+                            currentHistoryData = raw ? JSON.parse(raw) : [];
+                            renderHistory(currentHistoryData);
+                        }
+                    } else {
+                        // Other error - fallback to localStorage
+                        const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                        const raw = localStorage.getItem(storageKey);
+                        currentHistoryData = raw ? JSON.parse(raw) : [];
+                        renderHistory(currentHistoryData);
+                    }
+                });
+                
+                // Set up search listener (only once)
+                const search = document.getElementById('historySearch');
+                if (search) {
+                    // Remove existing listeners and add new one
+                    const newSearch = search.cloneNode(true);
+                    search.parentNode.replaceChild(newSearch, search);
+                    newSearch.addEventListener('input', (e) => {
+                        renderHistory(currentHistoryData, e.target.value);
+                    });
+                }
+            } catch (error) {
+                console.error("Error setting up Firebase listener:", error);
+                // Fallback to localStorage
+                const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
+                currentHistoryData = raw ? JSON.parse(raw) : [];
+                renderHistory(currentHistoryData);
+            }
+        }
+
+        function renderHistory(history, filter = "") {
+            const tbody = document.querySelector('#historyTable tbody');
+            if (!tbody) return;
+            const term = filter.toLowerCase();
+            const filteredHistory = history.filter(h => 
+                !term || 
+                h.operator?.toLowerCase().includes(term) || 
+                h.shift?.toLowerCase().includes(term) || 
+                h.remarks?.toLowerCase().includes(term) ||
+                h.displayTime?.toLowerCase().includes(term)
+            );
+            
+            tbody.innerHTML = filteredHistory.map(h => `
+                <tr data-entry-id="${h.id || ''}">
+                    <td>${h.displayTime || (h.dateTime ? new Date(h.dateTime).toLocaleString() : "")}</td>
+                    <td>${h.operator || ""}</td>
+                    <td>${h.shift || ""}</td>
+                    <td>${h.total?.toFixed ? h.total.toFixed(1) : h.total || ""}</td>
+                    <td>${h.remarks || ""}</td>
+                    <td>
+                        ${h.id ? `
+                            <button class="btn" style="padding: 6px 12px; font-size: 0.85rem; margin-right: 6px;" onclick="editEntry('${h.id}')">Edit</button>
+                            <button class="btn secondary" style="padding: 6px 12px; font-size: 0.85rem; margin-right: 6px;" onclick="deleteEntry('${h.id}')">Delete</button>
+                            <button class="btn secondary" style="padding: 6px 12px; font-size: 0.85rem; margin-right: 6px;" onclick="downloadStockEntryPDF('${h.id}')">Download</button>
+                            <button class="btn secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="previewStockEntryPDF('${h.id}')">Preview</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Helper function to escape CSV values
+        function escapeCSV(value) {
+            if (value === null || value === undefined) return '""';
+            const str = String(value);
+            // Replace double quotes with two double quotes and wrap in quotes
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+
+        async function exportCSV() {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to export data.");
+                return;
+            }
+            
+            let history = [];
+            
+            // First, try to use already loaded data from currentHistoryData if available
+            if (currentHistoryData && currentHistoryData.length > 0) {
+                console.log("Using already loaded history data:", currentHistoryData.length, "entries");
+                history = currentHistoryData;
+            } else if (checkFirebaseReady()) {
+                try {
+                    const { collection, getDocs, query, where, orderBy } = window.firebaseDB;
+                    const entriesRef = collection(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES);
+                    
+                    // Try query with orderBy first
+                    try {
+                        const q = query(entriesRef, where('userId', '==', userId), orderBy('createdAt', 'desc'));
+                        const snapshot = await getDocs(q);
+                        snapshot.forEach((docSnap) => {
+                            const data = docSnap.data();
+                            history.push({
+                                id: docSnap.id,
+                                ...data,
+                                displayTime: data.displayTime || (data.dateTime ? new Date(data.dateTime).toLocaleString() : '')
+                            });
+                        });
+                        console.log("Fetched", history.length, "entries from Firebase with orderBy");
+                    } catch (orderByError) {
+                        // If orderBy fails (missing index), try without orderBy
+                        if (orderByError.code === 'failed-precondition' || orderByError.message?.includes('index')) {
+                            console.log("Trying query without orderBy (will sort client-side)");
+                            const q2 = query(entriesRef, where('userId', '==', userId));
+                            const snapshot2 = await getDocs(q2);
+                            snapshot2.forEach((docSnap) => {
+                                const data = docSnap.data();
+                                history.push({
+                                    id: docSnap.id,
+                                    ...data,
+                                    displayTime: data.displayTime || (data.dateTime ? new Date(data.dateTime).toLocaleString() : '')
+                                });
+                            });
+                            // Sort by createdAt descending client-side
+                            history.sort((a, b) => {
+                                const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || (a.timestamp ? new Date(a.timestamp).getTime() : 0));
+                                const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || (b.timestamp ? new Date(b.timestamp).getTime() : 0));
+                                return bTime - aTime;
+                            });
+                            console.log("Fetched", history.length, "entries from Firebase without orderBy");
+                        } else {
+                            throw orderByError;
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error fetching from Firebase:", error);
+                    // Fallback to localStorage if Firebase query fails
+                    const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                    const raw = localStorage.getItem(storageKey);
+                    history = raw ? JSON.parse(raw) : [];
+                    console.log("Fell back to localStorage, found", history.length, "entries");
+                }
+            } else {
+                const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
+                history = raw ? JSON.parse(raw) : [];
+                console.log("Using localStorage, found", history.length, "entries");
+            }
+            
+            // Validate that we have data
+            if (history.length === 0) {
+                alert("No data found to export. Please ensure you have saved entries and are logged in with the correct user account.");
+                console.warn("No history data found for export. UserId:", userId);
+                return;
+            }
+            
+            console.log("Preparing CSV export for", history.length, "history entries");
+            
+            // CSV headers with all columns
+            const header = ["Time", "Operator", "Shift", "Tank Name", "Capacity (KL)", "Level (KL)", "Material", "GRN #", "Date", "Total (KL)", "Remarks"];
+            
+            // Build CSV rows - one row per tank entry
+            const rows = [];
+            
+            history.forEach((entry, entryIndex) => {
+                const entryData = entry.data || [];
+                const displayTime = entry.displayTime || (entry.dateTime ? new Date(entry.dateTime).toLocaleString() : '');
+                const operator = entry.operator || '';
+                const shift = entry.shift || '';
+                const total = entry.total || 0;
+                const remarks = entry.remarks || '';
+                
+                // If entry has tank data, create one row per tank
+                if (entryData.length > 0) {
+                    entryData.forEach((tank, tankIndex) => {
+                        rows.push([
+                            escapeCSV(displayTime),
+                            escapeCSV(operator),
+                            escapeCSV(shift),
+                            escapeCSV(tank.name || ''),
+                            escapeCSV(tank.capacity || ''),
+                            escapeCSV(tank.level || ''),
+                            escapeCSV(tank.material || ''),
+                            escapeCSV(tank.grn || ''),
+                            escapeCSV(tank.date || ''),
+                            escapeCSV(total),
+                            escapeCSV(remarks)
+                        ].join(','));
+                    });
+                } else {
+                    // If no tank data, create a summary row with empty tank fields
+                    rows.push([
+                        escapeCSV(displayTime),
+                        escapeCSV(operator),
+                        escapeCSV(shift),
+                        escapeCSV(''),
+                        escapeCSV(''),
+                        escapeCSV(''),
+                        escapeCSV(''),
+                        escapeCSV(''),
+                        escapeCSV(''),
+                        escapeCSV(total),
+                        escapeCSV(remarks)
+                    ].join(','));
+                }
+            });
+            
+            console.log("Generated", rows.length, "CSV rows from", history.length, "history entries");
+            
+            // Validate that we have rows
+            if (rows.length === 0) {
+                alert("No data rows to export. The entries may not contain tank data.");
+                console.warn("No CSV rows generated. History entries:", history);
+                return;
+            }
+            
+            // Combine header and rows
+            const csvContent = [header.join(','), ...rows].join('\n');
+            console.log("CSV content length:", csvContent.length, "characters");
+            
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "ccpl-history.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            console.log("CSV export completed successfully");
+        }
+
+        async function importCSV(evt) {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to import data.");
+                return;
+            }
+            const file = evt.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async e => {
+                const text = e.target.result;
+                const rows = text.split(/\r?\n/).slice(1).filter(Boolean);
+                
+                if (checkFirebaseReady()) {
+                    try {
+                        const { collection, addDoc, serverTimestamp } = window.firebaseDB;
+                        const entriesRef = collection(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES);
+                        for (const row of rows) {
+                            const cols = row.split(",");
+                            const entry = {
+                                displayTime: cols[0]?.replace(/"/g,""),
+                                operator: cols[1]?.replace(/"/g,""),
+                                shift: cols[2]?.replace(/"/g,""),
+                                total: parseFloat(cols[3]) || 0,
+                                remarks: cols[4]?.replace(/"/g,""),
+                                dateTime: new Date().toISOString(),
+                                timestamp: new Date().toISOString(),
+                                userId: userId,
+                                createdAt: serverTimestamp(),
+                                updatedAt: serverTimestamp()
+                            };
+                            await addDoc(entriesRef, entry);
+                        }
+                        alert("CSV imported successfully!");
+                    } catch (error) {
+                        console.error("Error importing to Firebase:", error);
+                        alert("Error importing CSV. Please try again.");
+                    }
+                } else {
+                    const history = rows.map(r => {
+                        const cols = r.split(",");
+                        return {
+                            displayTime: cols[0]?.replace(/"/g,""),
+                            operator: cols[1]?.replace(/"/g,""),
+                            shift: cols[2]?.replace(/"/g,""),
+                            total: parseFloat(cols[3]) || 0,
+                            remarks: cols[4]?.replace(/"/g,""),
+                            userId: userId
+                        };
+                    });
+                    const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                    localStorage.setItem(storageKey, JSON.stringify(history));
+                    renderHistory(history);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Edit Entry Functions
+        let currentEditId = null;
+        let currentEditData = null;
+        
+        async function editEntry(entryId) {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to edit entries.");
+                return;
+            }
+            if (!checkFirebaseReady()) {
+                alert("Firebase not initialized. Cannot edit entry.");
+                return;
+            }
+            
+            try {
+                const { collection, doc, getDoc } = window.firebaseDB;
+                const entryRef = doc(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES, entryId);
+                const entrySnap = await getDoc(entryRef);
+                
+                if (!entrySnap.exists()) {
+                    alert("Entry not found.");
+                    return;
+                }
+                
+                const entryData = entrySnap.data();
+                if (entryData.userId !== userId) {
+                    alert("You can only edit your own entries.");
+                    return;
+                }
+                
+                currentEditId = entryId;
+                currentEditData = entryData;
+                
+                // Populate edit form
+                document.getElementById('editOperator').value = currentEditData.operator || '';
+                document.getElementById('editShift').value = currentEditData.shift || '';
+                document.getElementById('editRemarks').value = currentEditData.remarks || '';
+                
+                // Populate stock data table
+                const tbody = document.getElementById('editStockDataBody');
+                tbody.innerHTML = (currentEditData.data || []).map((row, i) => `
+                    <tr>
+                        <td>${row.name}</td>
+                        <td>${row.capacity}</td>
+                        <td><input type="number" id="edit-level-${i}" value="${row.level}" min="0" max="${row.capacity}" style="width: 80px; padding: 4px;"></td>
+                        <td><input type="text" id="edit-material-${i}" value="${row.material || ''}" style="width: 100%; padding: 4px;"></td>
+                        <td><input type="text" id="edit-grn-${i}" value="${row.grn || ''}" style="width: 100%; padding: 4px;"></td>
+                        <td><input type="date" id="edit-date-${i}" value="${row.date || ''}" style="width: 100%; padding: 4px;"></td>
+                    </tr>
+                `).join('');
+                
+                // Show modal
+                document.getElementById('editEntryModal').classList.add('active');
+            } catch (error) {
+                console.error("Error loading entry for edit:", error);
+                alert("Error loading entry. Please try again.");
+            }
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editEntryModal').classList.remove('active');
+            currentEditId = null;
+            currentEditData = null;
+        }
+        
+        async function saveEditedEntry() {
+            if (!currentEditId || !checkFirebaseReady()) {
+                alert("Cannot save. Firebase not initialized.");
+                return;
+            }
+            
+            const operator = document.getElementById('editOperator').value.trim();
+            const shift = document.getElementById('editShift').value;
+            
+            if (!operator || !shift) {
+                alert("Operator and Shift are required.");
+                return;
+            }
+            
+            // Collect updated stock data
+            const updatedData = (currentEditData.data || []).map((row, i) => ({
+                name: row.name,
+                capacity: row.capacity,
+                level: parseFloat(document.getElementById(`edit-level-${i}`)?.value || 0),
+                material: document.getElementById(`edit-material-${i}`)?.value || '',
+                grn: document.getElementById(`edit-grn-${i}`)?.value || '',
+                date: document.getElementById(`edit-date-${i}`)?.value || ''
+            }));
+            
+            const total = updatedData.reduce((s, d) => s + d.level, 0);
+            const ts = new Date();
+            
+            try {
+                const { doc, updateDoc, serverTimestamp } = window.firebaseDB;
+                const entryRef = doc(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES, currentEditId);
+                
+                await updateDoc(entryRef, {
+                    operator,
+                    shift,
+                    remarks: document.getElementById('editRemarks').value || '',
+                    data: updatedData,
+                    total,
+                    dateTime: ts.toISOString(),
+                    timestamp: ts.toISOString(),
+                    displayTime: ts.toLocaleString(),
+                    updatedAt: serverTimestamp()
+                });
+                
+                alert("Entry updated successfully!");
+                closeEditModal();
+                // Real-time listener will automatically update the UI
+            } catch (error) {
+                console.error("Error updating entry:", error);
+                alert("Error updating entry. Please try again.");
+            }
+        }
+        
+        async function deleteEntry(entryId) {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to delete entries.");
+                return;
+            }
+            if (!checkFirebaseReady()) {
+                alert("Firebase not initialized. Cannot delete entry.");
+                return;
+            }
+            
+            if (!confirm("Are you sure you want to delete this entry? This action cannot be undone.")) {
+                return;
+            }
+            
+            try {
+                const { doc, getDoc, deleteDoc } = window.firebaseDB;
+                const entryRef = doc(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES, entryId);
+                const entrySnap = await getDoc(entryRef);
+                
+                if (!entrySnap.exists()) {
+                    alert("Entry not found.");
+                    return;
+                }
+                
+                const entryData = entrySnap.data();
+                if (entryData.userId !== userId) {
+                    alert("You can only delete your own entries.");
+                    return;
+                }
+                
+                await deleteDoc(entryRef);
+                alert("Entry deleted successfully!");
+                // Real-time listener will automatically update the UI
+            } catch (error) {
+                console.error("Error deleting entry:", error);
+                alert("Error deleting entry. Please try again.");
+            }
+        }
+
+        // PDF Helper Functions
+        // Cache for logo image (PDF watermark)
+        let logoImageData = null;
+        let logoAspectRatio = 0.75; // Default aspect ratio
+        
+        // Preload PDF logo image on page load
+        function preloadLogo() {
+            const img = new Image();
+            // Don't use crossOrigin for local files - it causes CORS errors
+            img.onload = function() {
+                try {
+                    // Store aspect ratio for later use
+                    logoAspectRatio = img.height / img.width;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    logoImageData = canvas.toDataURL('image/png');
+                    console.log("PDF Logo preloaded successfully", {
+                        width: img.width,
+                        height: img.height,
+                        aspectRatio: logoAspectRatio
+                    });
+                } catch (e) {
+                    console.error("Failed to convert logo to data URL:", e);
+                    console.warn("Will use text watermark instead");
+                }
+            };
+            img.onerror = function(event) {
+                console.error("Failed to load PDF logo image:", {
+                    src: img.src,
+                    error: event,
+                    message: "Image file 'PDFLogo.png' not found or cannot be loaded. Will use text watermark."
+                });
+            };
+            img.src = 'PDFLogo.png';
+        }
+
+        function addWatermark(doc) {
+            try {
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const centerX = pageWidth / 2;
+                const centerY = pageHeight / 2;
+                
+                // Try to add logo watermark if available
+                if (logoImageData) {
+                    try {
+                        // Calculate logo size (40% of page width for better visibility)
+                        const logoWidth = pageWidth * 0.4;
+                        // Calculate height based on stored aspect ratio
+                        const logoHeight = logoWidth * logoAspectRatio;
+                        const logoX = centerX - (logoWidth / 2);
+                        const logoY = centerY - (logoHeight / 2);
+                        
+                        // Add logo image with transparency (light faded effect)
+                        // Use setGState for opacity if available
+                        try {
+                            // Save graphics state
+                            doc.saveGraphicsState();
+                            // Set opacity to 0.15 for light faded watermark effect
+                            doc.setGState(doc.GState({opacity: 0.15, 'stroke-opacity': 0.15}));
+                        } catch (e) {
+                            // If setGState not available, try alternative
+                            console.warn("setGState not available, using alternative transparency method");
+                        }
+                        
+                        // Add the image - this will appear behind all content
+                        doc.addImage(logoImageData, 'PNG', logoX, logoY, logoWidth, logoHeight, undefined, 'FAST');
+                        
+                        // Restore graphics state
+                        try {
+                            doc.restoreGraphicsState();
+                        } catch (e) {
+                            // If restore not available, reset opacity manually
+                            try {
+                                doc.setGState(doc.GState({opacity: 1.0, 'stroke-opacity': 1.0}));
+                            } catch (e2) {
+                                // Ignore if not available
+                            }
+                        }
+                        return; // Exit early - don't add text watermark
+                    } catch (e) {
+                        console.warn("Failed to add logo watermark, using text fallback:", e);
+                        // Continue to text fallback below
+                    }
+                }
+                
+                // Fallback to text watermark only if logo is not available
+                const currentTextColor = doc.getTextColor();
+                const currentFontSize = doc.getFontSize();
+                const currentFont = doc.getFont();
+                
+                doc.setTextColor(220, 220, 220);
+                doc.setFontSize(50);
+                doc.setFont(undefined, 'bold');
+                
+                const text = "Cognizant Chemical Pvt. Ltd.";
+                const textWidth = doc.getTextWidth(text);
+                
+                doc.text(text, centerX - textWidth/2, centerY - 20);
+                doc.text(text, centerX - textWidth/2, centerY + 20);
+                
+                // Restore original settings
+                if (currentTextColor && typeof currentTextColor === 'object') {
+                    doc.setTextColor(currentTextColor.r || 0, currentTextColor.g || 0, currentTextColor.b || 0);
+                } else {
+                    doc.setTextColor(0, 0, 0);
+                }
+                doc.setFontSize(currentFontSize || 12);
+                if (currentFont && Array.isArray(currentFont)) {
+                    doc.setFont(currentFont[0], currentFont[1]);
+                }
+            } catch (e) {
+                // Fallback: simple watermark if advanced features not supported
+                doc.setTextColor(220, 220, 220);
+                doc.setFontSize(40);
+                doc.setFont(undefined, 'bold');
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                doc.text("Cognizant Chemical Pvt. Ltd.", pageWidth / 2, pageHeight / 2, { align: 'center' });
+                doc.setTextColor(0, 0, 0);
+            }
+        }
+
+        function pdfHeader(doc, title, subtitle) {
+            const blue = { r: 29, g: 78, b: 216 };
+            doc.setTextColor(blue.r, blue.g, blue.b);
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text("Cognizant Chemical Pvt. Ltd.", 14, 16);
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'normal');
+            doc.text(title, 14, 24);
+            if (subtitle) {
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text(subtitle, 14, 30);
+            }
+            doc.setTextColor(0, 0, 0);
+        }
+
+        async function downloadStockEntryPDF(entryId) {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to download PDFs.");
+                return;
+            }
+            if (!checkFirebaseReady()) {
+                alert("Firebase not initialized. Cannot download PDF.");
+                return;
+            }
+            
+            try {
+                const { collection, doc, getDoc } = window.firebaseDB;
+                const entryRef = doc(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES, entryId);
+                const entrySnap = await getDoc(entryRef);
+                
+                if (!entrySnap.exists()) {
+                    alert("Entry not found.");
+                    return;
+                }
+                
+                const entryData = entrySnap.data();
+                if (entryData.userId !== userId) {
+                    alert("You can only download your own entries.");
+                    return;
+                }
+                
+                generateStockEntryPDF(entryData, entryId);
+            } catch (error) {
+                console.error("Error downloading PDF:", error);
+                alert("Error downloading PDF. Please try again.");
+            }
+        }
+
+        function generateStockEntryPDF(entryData, entryId) {
+            if (!window.jspdf) return alert("jsPDF not loaded");
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: "portrait", unit: 'mm', format: 'a4' });
+            const data = entryData.data || [];
+
+            // Add watermark
+            addWatermark(doc);
+
+            pdfHeader(doc, "Daily Tank Stock Summary", `Generated: ${new Date().toLocaleString()}`);
+            
+            // Add entry metadata
+            let y = 40;
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Operator: ${entryData.operator || ''}`, 14, y);
+            y += 6;
+            doc.text(`Shift: ${entryData.shift || ''}`, 14, y);
+            y += 6;
+            doc.text(`Remarks: ${entryData.remarks || ''}`, 14, y);
+            y += 6;
+            doc.text(`Date/Time: ${entryData.displayTime || entryData.dateTime || ''}`, 14, y);
+            y += 10;
+
+            const headers = ["Tank", "Cap (KL)", "Level (KL)", "Material", "GRN #", "Date"];
+            const colWidths = [25, 20, 20, 35, 30, 30];
+            let xPos = [14];
+            for (let i = 1; i < colWidths.length; i++) {
+                xPos.push(xPos[i-1] + colWidths[i-1]);
+            }
+            
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+
+            // Header row
+            doc.setFillColor(29, 78, 216);
+            doc.setTextColor(255, 255, 255);
+            doc.rect(12, y - 6, pageWidth - 24, 8, "F");
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'bold');
+            headers.forEach((h, idx) => {
+                if (xPos[idx] + colWidths[idx] < pageWidth - 12) {
+                    doc.text(h, xPos[idx], y);
+                }
+            });
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            y += 7;
+
+            // Data rows
+            data.forEach(row => {
+                if (y > pageHeight - 40) {
+                    doc.addPage();
+                    addWatermark(doc);
+                    pdfHeader(doc, "Daily Tank Stock Summary (cont.)", `Generated: ${new Date().toLocaleString()}`);
+                    y = 40;
+                    doc.setFillColor(29, 78, 216);
+                    doc.setTextColor(255, 255, 255);
+                    doc.rect(12, y - 6, pageWidth - 24, 8, "F");
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'bold');
+                    headers.forEach((h, idx) => {
+                        if (xPos[idx] + colWidths[idx] < pageWidth - 12) {
+                            doc.text(h, xPos[idx], y);
+                        }
+                    });
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont(undefined, 'normal');
+                    y += 7;
+                }
+                
+                doc.setFontSize(8);
+                const values = [
+                    String(row.name),
+                    String(row.capacity),
+                    row.level.toFixed(1),
+                    row.material || "-",
+                    row.grn || "-",
+                    row.date || "-"
+                ];
+                
+                values.forEach((val, idx) => {
+                    if (xPos[idx] + colWidths[idx] < pageWidth - 12) {
+                        const maxWidth = colWidths[idx] - 2;
+                        const text = doc.splitTextToSize(val, maxWidth);
+                        doc.text(text[0] || val.substring(0, 20), xPos[idx], y);
+                    }
+                });
+                y += 7;
+            });
+
+            // Calculate totals
+            const totalStock = data.reduce((sum, d) => sum + d.level, 0);
+            const totalCapacity = data.reduce((sum, d) => sum + d.capacity, 0);
+            const usagePercentage = totalCapacity > 0 ? (totalStock / totalCapacity * 100) : 0;
+
+            // Summary section
+            y += 8;
+            doc.setDrawColor(29, 78, 216);
+            doc.setLineWidth(0.5);
+            doc.line(14, y, doc.internal.pageSize.getWidth() - 14, y);
+            y += 8;
+
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(29, 78, 216);
+            doc.text("Summary Statistics", 14, y);
+            y += 8;
+
+            doc.setFontSize(11);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Total Stock Quantity: ${totalStock.toFixed(2)} KL`, 14, y);
+            y += 7;
+            doc.text(`Total Tank Capacity: ${totalCapacity.toFixed(2)} KL`, 14, y);
+            y += 7;
+            doc.text(`Usage Percentage: ${usagePercentage.toFixed(2)}%`, 14, y);
+            y += 7;
+            
+            // Visual usage indicator
+            const barWidth = 100;
+            const usageBarWidth = (usagePercentage / 100) * barWidth;
+            doc.setFillColor(220, 220, 220);
+            doc.rect(14, y - 4, barWidth, 6, "F");
+            if (usagePercentage > 0) {
+                const barColor = usagePercentage > 90 ? {r: 239, g: 68, b: 68} : 
+                                usagePercentage > 70 ? {r: 245, g: 158, b: 11} : 
+                                {r: 16, g: 185, b: 129};
+                doc.setFillColor(barColor.r, barColor.g, barColor.b);
+                doc.rect(14, y - 4, usageBarWidth, 6, "F");
+            }
+            doc.setFontSize(9);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`${usagePercentage.toFixed(1)}%`, 120, y);
+
+            // Level chart
+            const sorted = [...data].sort((a,b) => b.level - a.level);
+            const maxLevel = Math.max(...sorted.map(d => d.level), 1);
+            y += 15;
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(29, 78, 216);
+            doc.text("Level Chart (High to Low)", 14, y);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(0, 0, 0);
+            y += 7;
+            sorted.forEach((row, idx) => {
+                if (idx >= 10) return;
+                const barWidth = Math.max(5, (row.level / maxLevel) * 90);
+                doc.setFillColor(59, 130, 246);
+                doc.rect(14, y - 4, barWidth, 5, "F");
+                doc.setFontSize(9);
+                doc.text(row.name, 108, y);
+                doc.text(`${row.level.toFixed(1)} KL`, 140, y);
+                y += 7;
+            });
+            
+            doc.setProperties({
+                title: 'CCPL Tank Stock Summary',
+                subject: 'Daily Stock Report',
+                author: 'Cognizant Chemical Pvt. Ltd.',
+                keywords: 'stock, report, tank operations',
+                creator: 'CCPL Tank Operations System'
+            });
+            
+            doc.save(`stock-entry-${entryId}.pdf`);
+        }
+
+        async function previewStockEntryPDF(entryId) {
+            currentPreviewEntryId = entryId;
+            document.getElementById('pdfPreviewModal').classList.add('active');
+        }
+
+        function closePDFPreviewModal() {
+            document.getElementById('pdfPreviewModal').classList.remove('active');
+            currentPreviewEntryId = null;
+        }
+
+        function downloadCurrentPreviewPDF() {
+            if (currentPreviewEntryId) {
+                downloadStockEntryPDF(currentPreviewEntryId);
+                closePDFPreviewModal();
+            }
+        }
+
+        // Make functions available globally
+        window.handleLogin = handleLogin;
+        window.handleLogout = handleLogout;
+        window.editEntry = editEntry;
+        window.deleteEntry = deleteEntry;
+        window.closeEditModal = closeEditModal;
+        window.saveEditedEntry = saveEditedEntry;
+        window.exportCSV = exportCSV;
+        window.importCSV = importCSV;
+        window.downloadStockEntryPDF = downloadStockEntryPDF;
+        window.previewStockEntryPDF = previewStockEntryPDF;
+        window.closePDFPreviewModal = closePDFPreviewModal;
+        window.downloadCurrentPreviewPDF = downloadCurrentPreviewPDF;
+        
+        // Preload logo image
+        preloadLogo();
+        
+        // Check authentication on load
+        if (checkAuth()) {
+            // Load from localStorage immediately (in case Firebase is slow)
+            const userId = getCurrentUserId();
+            if (userId) {
+                const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
+                if (raw) {
+                    currentHistoryData = JSON.parse(raw);
+                    renderHistory(currentHistoryData);
+                }
+            }
+            // Wait for Firebase to initialize before starting
+            waitForFirebase(() => {
+                buildHistoryTable();
+            }, 50);
+            // Also try to build after a short delay in case Firebase never initializes
+            setTimeout(() => {
+                if (currentHistoryData.length === 0) {
+                    buildHistoryTable();
+                }
+            }, 2000);
+        }
+
+    </script>
+</body>
+</html>
+

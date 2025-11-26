@@ -41,6 +41,7 @@
                 deleteDoc: firestore.deleteDoc,
                 onSnapshot: firestore.onSnapshot,
                 query: firestore.query,
+                where: firestore.where,
                 orderBy: firestore.orderBy,
                 serverTimestamp: firestore.serverTimestamp
             };
@@ -146,6 +147,19 @@
             font-weight:800; 
             font-size: 1.1rem;
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        #companyLogo {
+            height: 48px;
+            width: auto;
+            max-width: 120px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+        @media (max-width: 768px) {
+            #companyLogo {
+                height: 36px;
+                max-width: 90px;
+            }
         }
         .legend {
             display: flex;
@@ -634,6 +648,34 @@
         .modal-overlay.active {
             display: flex;
         }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            z-index: 10000;
+            font-weight: 600;
+            font-size: 1rem;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        .toast.show {
+            display: block;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
         .modal {
             background: white;
             border-radius: 16px;
@@ -697,10 +739,12 @@
     <div class="page">
         <div class="card hero">
             <div class="brand-mark">
+                <img id="companyLogo" src="Logo.png" alt="Company Logo" style="height: 48px; width: auto; margin-right: 14px; display: none;" onerror="this.style.display='none';" onload="if(document.getElementById('mainApp').style.display !== 'none') this.style.display='block';">
                 <div class="logo-dot">CC</div>
                 <div class="hero-title">
                     <h1>CCPL Tank Operations</h1>
                     <p>Cognizant Chemical Pvt. Ltd.</p>
+                    <p id="userInfo" style="font-size: 0.85rem; margin-top: 4px; color: rgba(255,255,255,0.9); display: none;">Logged in as: <span id="usernameDisplay"></span></p>
                 </div>
             </div>
             <div class="legend">
@@ -741,8 +785,8 @@
                         <option value="General">General</option>
                     </select>
                 </label>
-                <label>Remarks <input id="remarksText" type="text" placeholder="Optional remarks"></label>
-                <button class="btn" onclick="saveSnapshot()">Save Snapshot</button>
+                <label>Remarks <input id="remarksText" type="text" placeholder="Remarks" required></label>
+                <!-- <button class="btn" onclick="saveSnapshot()">Save Snapshot</button> -->
             </div>
             <table class="stock-table" id="stockTable">
                 <thead>
@@ -758,46 +802,32 @@
                 <tbody></tbody>
             </table>
             <div class="stock-actions">
+                <button class="btn" onclick="saveSnapshot()">Save Snapshot</button>
                 <button class="btn" onclick="downloadPDF()">Download PDF Summary</button>
+                <button class="btn secondary" onclick="window.location.href='history.html'">History</button>
                 <span class="summary-text" id="summaryText"></span>
             </div>
         </div>
 
-        <div class="card controls-panel">
-            <div class="control-bar" id="controlBar"></div>
-        </div>
-
-        <div class="card stock-panel" id="historyPanel">
-            <h3>History / Audit Trail</h3>
-            <div class="form-row">
-                <label>Search <input id="historySearch" type="text" placeholder="Filter history"></label>
-                <button class="btn secondary" onclick="exportCSV()">Export CSV</button>
-                <label class="btn secondary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
-                    Import CSV
-                    <input id="importCSVInput" type="file" accept=".csv" style="display:none;" onchange="importCSV(event)">
-                </label>
-            </div>
-            <table class="stock-table" id="historyTable">
-                <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>Operator</th>
-                        <th>Shift</th>
-                        <th>Total KL</th>
-                        <th>Remarks</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+        <div class="">
+            <div class="" id="controlBar"></div>
         </div>
 
             <div class="card stock-panel" id="productionPanel">
             <h3>Daily Production Entry</h3>
             <p class="summary-text">Includes Start and Expected End for on-time tracking.</p>
             <div class="form-row">
-                <button class="btn" onclick="downloadProductionPDF()">Download Production PDF</button>
-                <button class="btn secondary" onclick="downloadCombinedPDF()">Download Combined PDF</button>
+                <label>Operator <input id="productionOperatorName" type="text" placeholder="Name" required></label>
+                <label>Shift
+                    <select id="productionShiftSelect" required>
+                        <option value="">Select shift</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="General">General</option>
+                    </select>
+                </label>
+                <label>Remarks <input id="productionRemarksText" type="text" placeholder="Optional remarks"></label>
             </div>
             <table class="stock-table" id="productionTable">
                 <thead>
@@ -818,6 +848,12 @@
                 </thead>
                 <tbody></tbody>
             </table>
+            <div class="stock-actions" style="margin-top: 16px;">
+                <button class="btn" onclick="saveProductionSnapshot()">Save Snapshot</button>
+                <button class="btn secondary" onclick="viewAllProductionEntries()">View All Entries</button>
+                <button class="btn secondary" onclick="downloadProductionPDF()">Download Production PDF</button>
+                <button class="btn secondary" onclick="downloadCombinedPDF()">Download Combined PDF</button>
+            </div>
         </div>
 
         <div class="card side-panel" style="padding:16px;">
@@ -846,6 +882,9 @@
     </div>
     </div>
     
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+    
     <!-- End Time Modal -->
     <div id="endTimeModal" class="modal-overlay" onclick="if(event.target.id === 'endTimeModal') closeEndTimeModal()">
         <div class="modal">
@@ -864,6 +903,69 @@
                     <button class="btn" onclick="saveEndTime()" style="flex: 1;">Save</button>
                     <button class="btn secondary" onclick="closeEndTimeModal()" style="flex: 1;">Cancel</button>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Production Entry Modal -->
+    <div id="editProductionEntryModal" class="modal-overlay" onclick="if(event.target.id === 'editProductionEntryModal') closeEditProductionModal()">
+        <div class="modal" style="max-width: 800px;">
+            <button class="modal-close" onclick="closeEditProductionModal()">&times;</button>
+            <h3>Edit Production Entry</h3>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <label>
+                    Operator:
+                    <input type="text" id="editProductionOperator" style="width: 100%; padding: 10px; margin-top: 6px; border: 2px solid var(--border); border-radius: 8px;">
+                </label>
+                <label>
+                    Shift:
+                    <select id="editProductionShift" style="width: 100%; padding: 10px; margin-top: 6px; border: 2px solid var(--border); border-radius: 8px;">
+                        <option value="">Select shift</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="General">General</option>
+                    </select>
+                </label>
+                <label>
+                    Remarks:
+                    <input type="text" id="editProductionRemarks" style="width: 100%; padding: 10px; margin-top: 6px; border: 2px solid var(--border); border-radius: 8px;">
+                </label>
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <table class="stock-table" style="font-size: 0.85rem;">
+                        <thead>
+                            <tr>
+                                <th>Reactor</th>
+                                <th>Product</th>
+                                <th>Batch #</th>
+                                <th>Start</th>
+                                <th>Expected End</th>
+                                <th>End Time</th>
+                                <th>Qty (L)</th>
+                                <th>Tank</th>
+                                <th>Progress %</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="editProductionDataBody"></tbody>
+                    </table>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn" onclick="saveEditedProductionEntry()" style="flex: 1;">Save Changes</button>
+                    <button class="btn secondary" onclick="closeEditProductionModal()" style="flex: 1;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Preview Modal -->
+    <div id="pdfPreviewModal" class="modal-overlay" onclick="if(event.target.id === 'pdfPreviewModal') closePDFPreviewModal()">
+        <div class="modal" style="max-width: 90%; max-height: 90vh;">
+            <button class="modal-close" onclick="closePDFPreviewModal()">&times;</button>
+            <h3>PDF Preview</h3>
+            <div style="text-align: center; margin: 20px 0;">
+                <p>PDF preview is generated on download. Click Download to save the PDF file.</p>
+                <button class="btn" onclick="downloadCurrentPreviewPDF()">Download PDF</button>
             </div>
         </div>
     </div>
@@ -925,7 +1027,8 @@
         const STORAGE_KEYS = {
             CURRENT: "ccpl-current",
             HISTORY: "ccpl-history",
-            PRODUCTION: "ccpl-production"
+            PRODUCTION: "ccpl-production",
+            PRODUCTION_HISTORY: "ccpl-production-history"
         };
         
         // Firebase collections
@@ -958,6 +1061,22 @@
                 }
             }, 100);
         };
+
+        // Get current user ID from authentication
+        function getCurrentUserId() {
+            const auth = localStorage.getItem('ccpl-auth');
+            if (auth) {
+                try {
+                    const authData = JSON.parse(auth);
+                    if (authData.user && authData.expires > Date.now()) {
+                        return authData.user;
+                    }
+                } catch (e) {
+                    return null;
+                }
+            }
+            return null;
+        }
 
         const TANKS = [
             { name: "TANK1", capacity: 25, type: "iso" },
@@ -1004,6 +1123,24 @@
                     if (authData.user && VALID_USERS[authData.user] && authData.expires > Date.now()) {
                         document.getElementById('loginPage').style.display = 'none';
                         document.getElementById('mainApp').style.display = 'block';
+                        
+                        // Display user info and logo
+                        const usernameDisplay = document.getElementById('usernameDisplay');
+                        const userInfo = document.getElementById('userInfo');
+                        const companyLogo = document.getElementById('companyLogo');
+                        if (usernameDisplay && userInfo) {
+                            usernameDisplay.textContent = authData.user;
+                            userInfo.style.display = 'block';
+                        }
+                        if (companyLogo) {
+                            companyLogo.style.display = 'block';
+                            // Hide logo-dot when logo is shown
+                            const logoDot = document.querySelector('.logo-dot');
+                            if (logoDot) {
+                                logoDot.style.display = 'none';
+                            }
+                        }
+                        
                         return true;
                     }
                 } catch (e) {
@@ -1012,6 +1149,18 @@
             }
             document.getElementById('loginPage').style.display = 'flex';
             document.getElementById('mainApp').style.display = 'none';
+            
+            // Hide user info and logo when logged out
+            const userInfo = document.getElementById('userInfo');
+            const companyLogo = document.getElementById('companyLogo');
+            if (userInfo) userInfo.style.display = 'none';
+            if (companyLogo) companyLogo.style.display = 'none';
+            // Show logo-dot when logo is hidden
+            const logoDot = document.querySelector('.logo-dot');
+            if (logoDot) {
+                logoDot.style.display = 'flex';
+            }
+            
             return false;
         }
         
@@ -1099,7 +1248,6 @@
             buildFleet();
             resizeRenderer();
             loadSavedState();
-            buildHistoryTable();
             buildProductionTable();
 
             document.getElementById('loading').style.display = 'none';
@@ -1108,11 +1256,7 @@
         function buildControls() {
             const bar = document.getElementById('controlBar');
             bar.innerHTML = TANKS.map((t, i) => `
-                <div class="tank-input" data-index="${i}">
-                    <label>${t.name}</label>
-                    <input type="range" min="0" max="${t.capacity}" value="${Math.round(t.capacity * 0.5)}" oninput="updateTankLevel(${i}, this.value)">
-                    <input type="number" id="val-${i}" value="${Math.round(t.capacity * 0.5)}" min="0" max="${t.capacity}" onchange="updateTankLevel(${i}, this.value)">
-                </div>
+               
             `).join('');
         }
 
@@ -1395,13 +1539,18 @@
         }
 
         async function saveSnapshot() {
-            const operator = document.getElementById('operatorName')?.value.trim();
-            const shift = document.getElementById('shiftSelect')?.value;
-            if (!operator || !shift) {
-                alert("Operator and Shift are required.");
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to save entries.");
                 return;
             }
-            const remarks = document.getElementById('remarksText')?.value || "";
+            const operator = document.getElementById('operatorName')?.value.trim();
+            const shift = document.getElementById('shiftSelect')?.value;
+            const remarks = document.getElementById('remarksText')?.value.trim();
+            if (!operator || !shift || !remarks) {
+                alert("Operator, Shift, and Remarks are required.");
+                return;
+            }
             const data = getStockData();
             const total = data.reduce((s, d) => s + d.level, 0);
             const ts = new Date();
@@ -1414,7 +1563,8 @@
                 timestamp: ts.toISOString(),
                 dateTime: ts.toISOString(), // Auto-save date and time together
                 displayTime: ts.toLocaleString(),
-                createdAt: ts.getTime()
+                createdAt: ts.getTime(),
+                userId: userId
             };
             
             // Save to Firebase if available, otherwise fallback to localStorage
@@ -1428,28 +1578,47 @@
                         updatedAt: serverTimestamp()
                     });
                     // Real-time listener will update the UI automatically
+                    showToast("Saved Successfully");
                 } catch (error) {
                     console.error("Error saving to Firebase:", error);
                     alert("Error saving entry. Please try again.");
                 }
             } else {
                 // Fallback to localStorage
-                const raw = localStorage.getItem(STORAGE_KEYS.HISTORY);
+                const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
                 const history = raw ? JSON.parse(raw) : [];
                 history.unshift(entry);
-                localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history.slice(0, 200)));
+                localStorage.setItem(storageKey, JSON.stringify(history.slice(0, 200)));
                 renderHistory(history);
+                showToast("Saved Successfully");
             }
             saveCurrentState();
         }
 
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            if (!toast) return;
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
         function buildHistoryTable() {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                console.warn("User not authenticated");
+                return;
+            }
             if (checkFirebaseReady()) {
                 // Set up real-time listener for Firebase
                 setupFirebaseHistoryListener();
             } else {
                 // Fallback to localStorage
-                const raw = localStorage.getItem(STORAGE_KEYS.HISTORY);
+                const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
                 currentHistoryData = raw ? JSON.parse(raw) : [];
                 renderHistory(currentHistoryData);
                 const search = document.getElementById('historySearch');
@@ -1464,10 +1633,15 @@
         let currentHistoryData = [];
         
         function setupFirebaseHistoryListener() {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                console.warn("User not authenticated");
+                return;
+            }
             try {
-                const { collection, onSnapshot, query, orderBy } = window.firebaseDB;
+                const { collection, onSnapshot, query, where, orderBy } = window.firebaseDB;
                 const entriesRef = collection(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES);
-                const q = query(entriesRef, orderBy('createdAt', 'desc'));
+                const q = query(entriesRef, where('userId', '==', userId), orderBy('createdAt', 'desc'));
                 
                 // Real-time listener
                 onSnapshot(q, (snapshot) => {
@@ -1485,7 +1659,8 @@
                 }, (error) => {
                     console.error("Error listening to Firebase:", error);
                     // Fallback to localStorage
-                    const raw = localStorage.getItem(STORAGE_KEYS.HISTORY);
+                    const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                    const raw = localStorage.getItem(storageKey);
                     currentHistoryData = raw ? JSON.parse(raw) : [];
                     renderHistory(currentHistoryData);
                 });
@@ -1503,7 +1678,8 @@
             } catch (error) {
                 console.error("Error setting up Firebase listener:", error);
                 // Fallback to localStorage
-                const raw = localStorage.getItem(STORAGE_KEYS.HISTORY);
+                const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
                 currentHistoryData = raw ? JSON.parse(raw) : [];
                 renderHistory(currentHistoryData);
             }
@@ -1539,12 +1715,17 @@
         }
 
         async function exportCSV() {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to export data.");
+                return;
+            }
             let history = [];
             if (checkFirebaseReady()) {
                 try {
-                    const { collection, getDocs, query, orderBy } = window.firebaseDB;
+                    const { collection, getDocs, query, where, orderBy } = window.firebaseDB;
                     const entriesRef = collection(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES);
-                    const q = query(entriesRef, orderBy('createdAt', 'desc'));
+                    const q = query(entriesRef, where('userId', '==', userId), orderBy('createdAt', 'desc'));
                     const snapshot = await getDocs(q);
                     snapshot.forEach((docSnap) => {
                         const data = docSnap.data();
@@ -1557,7 +1738,8 @@
                     console.error("Error fetching from Firebase:", error);
                 }
             } else {
-                const raw = localStorage.getItem(STORAGE_KEYS.HISTORY);
+                const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
                 history = raw ? JSON.parse(raw) : [];
             }
             
@@ -1579,6 +1761,11 @@
         }
 
         async function importCSV(evt) {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to import data.");
+                return;
+            }
             const file = evt.target.files[0];
             if (!file) return;
             const reader = new FileReader();
@@ -1600,6 +1787,7 @@
                                 remarks: cols[4]?.replace(/"/g,""),
                                 dateTime: new Date().toISOString(),
                                 timestamp: new Date().toISOString(),
+                                userId: userId,
                                 createdAt: serverTimestamp(),
                                 updatedAt: serverTimestamp()
                             };
@@ -1618,10 +1806,12 @@
                             operator: cols[1]?.replace(/"/g,""),
                             shift: cols[2]?.replace(/"/g,""),
                             total: parseFloat(cols[3]) || 0,
-                            remarks: cols[4]?.replace(/"/g,"")
+                            remarks: cols[4]?.replace(/"/g,""),
+                            userId: userId
                         };
                     });
-                    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
+                    const storageKey = `${STORAGE_KEYS.HISTORY}-${userId}`;
+                    localStorage.setItem(storageKey, JSON.stringify(history));
                     renderHistory(history);
                 }
             };
@@ -1689,7 +1879,7 @@
                     <td><input type="text" value="${row.start || ''}" onchange="updateProductionField(${idx}, 'start', this.value)"></td>
                     <td><input type="text" value="${row.expectedEnd || ''}" onchange="updateProductionField(${idx}, 'expectedEnd', this.value)"></td>
                     <td>
-                        <button class="btn" style="padding: 6px 12px; font-size: 0.85rem;" onclick="openEndTimeModal(${idx})">
+                        <button class="btn" style="padding: 6px 20px; font-size: 0.85rem;" onclick="openEndTimeModal(${idx})">
                             ${row.endTime || 'Set End Time'}
                         </button>
                     </td>
@@ -1716,6 +1906,285 @@
         function getProductionData() {
             const saved = localStorage.getItem(STORAGE_KEYS.PRODUCTION);
             return saved ? JSON.parse(saved) : DEFAULT_PRODUCTION.slice();
+        }
+
+        async function saveProductionSnapshot() {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to save entries.");
+                return;
+            }
+            const operator = document.getElementById('productionOperatorName')?.value.trim();
+            const shift = document.getElementById('productionShiftSelect')?.value;
+            if (!operator || !shift) {
+                alert("Operator and Shift are required.");
+                return;
+            }
+            const remarks = document.getElementById('productionRemarksText')?.value || "";
+            const data = getProductionData();
+            const ts = new Date();
+            const entry = {
+                operator,
+                shift,
+                remarks,
+                data,
+                timestamp: ts.toISOString(),
+                dateTime: ts.toISOString(),
+                displayTime: ts.toLocaleString(),
+                createdAt: ts.getTime(),
+                userId: userId
+            };
+            
+            // Save to Firebase if available, otherwise fallback to localStorage
+            if (checkFirebaseReady()) {
+                try {
+                    const { collection, addDoc, serverTimestamp } = window.firebaseDB;
+                    const entriesRef = collection(window.firebaseDB.db, FIREBASE_COLLECTIONS.PRODUCTION_ENTRIES);
+                    await addDoc(entriesRef, {
+                        ...entry,
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    });
+                    // Real-time listener will update the UI automatically
+                    showToast("Saved Successfully");
+                } catch (error) {
+                    console.error("Error saving to Firebase:", error);
+                    alert("Error saving entry. Please try again.");
+                }
+            } else {
+                // Fallback to localStorage
+                const storageKey = `${STORAGE_KEYS.PRODUCTION_HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
+                const history = raw ? JSON.parse(raw) : [];
+                history.unshift(entry);
+                localStorage.setItem(storageKey, JSON.stringify(history.slice(0, 200)));
+                showToast("Saved Successfully");
+            }
+        }
+
+        function viewAllProductionEntries() {
+            // Hide main app panels
+            document.querySelectorAll('.card').forEach(card => {
+                if (card.id !== 'productionEntriesPanel' && !card.classList.contains('always-visible')) {
+                    card.style.display = 'none';
+                }
+            });
+            
+            // Show or create production entries panel
+            let panel = document.getElementById('productionEntriesPanel');
+            if (!panel) {
+                panel = document.createElement('div');
+                panel.id = 'productionEntriesPanel';
+                panel.className = 'card stock-panel';
+                panel.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3>All Production Entries</h3>
+                        <button class="btn secondary" onclick="closeProductionEntriesView()">Back to Production Entry</button>
+                    </div>
+                    <div class="form-row">
+                        <label>Search <input id="productionHistorySearch" type="text" placeholder="Filter entries"></label>
+                    </div>
+                    <table class="stock-table" id="productionHistoryTable">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Operator</th>
+                                <th>Shift</th>
+                                <th>Remarks</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                `;
+                document.querySelector('.page').appendChild(panel);
+            }
+            panel.style.display = 'block';
+            
+            // Load and render entries
+            loadProductionEntries();
+        }
+
+        function closeProductionEntriesView() {
+            document.getElementById('productionEntriesPanel').style.display = 'none';
+            document.querySelectorAll('.card').forEach(card => {
+                if (card.id !== 'productionEntriesPanel') {
+                    card.style.display = '';
+                }
+            });
+        }
+
+        let currentProductionHistoryData = [];
+
+        function setupFirebaseProductionHistoryListener() {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                console.warn("User not authenticated");
+                // Fallback to localStorage
+                const storageKey = `${STORAGE_KEYS.PRODUCTION_HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
+                currentProductionHistoryData = raw ? JSON.parse(raw) : [];
+                renderProductionHistory(currentProductionHistoryData);
+                return;
+            }
+            try {
+                const { collection, onSnapshot, query, where, orderBy } = window.firebaseDB;
+                const entriesRef = collection(window.firebaseDB.db, FIREBASE_COLLECTIONS.PRODUCTION_ENTRIES);
+                
+                // Try query with where and orderBy (requires composite index)
+                const q = query(entriesRef, where('userId', '==', userId), orderBy('createdAt', 'desc'));
+                
+                // Real-time listener
+                onSnapshot(q, (snapshot) => {
+                    currentProductionHistoryData = [];
+                    snapshot.forEach((docSnap) => {
+                        const data = docSnap.data();
+                        currentProductionHistoryData.push({
+                            id: docSnap.id,
+                            ...data,
+                            displayTime: data.displayTime || (data.dateTime ? new Date(data.dateTime).toLocaleString() : ''),
+                            timestamp: data.timestamp || data.dateTime || ''
+                        });
+                    });
+                    renderProductionHistory(currentProductionHistoryData);
+                }, (error) => {
+                    console.error("Error listening to Firebase (may need composite index):", error);
+                    // If error is about missing index, try query without orderBy
+                    if (error.code === 'failed-precondition' || error.message?.includes('index')) {
+                        console.log("Trying production query without orderBy (will sort client-side)");
+                        try {
+                            const q2 = query(entriesRef, where('userId', '==', userId));
+                            onSnapshot(q2, (snapshot) => {
+                                currentProductionHistoryData = [];
+                                snapshot.forEach((docSnap) => {
+                                    const data = docSnap.data();
+                                    currentProductionHistoryData.push({
+                                        id: docSnap.id,
+                                        ...data,
+                                        displayTime: data.displayTime || (data.dateTime ? new Date(data.dateTime).toLocaleString() : ''),
+                                        timestamp: data.timestamp || data.dateTime || ''
+                                    });
+                                });
+                                // Sort by createdAt descending client-side
+                                currentProductionHistoryData.sort((a, b) => {
+                                    const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || (a.timestamp ? new Date(a.timestamp).getTime() : 0));
+                                    const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || (b.timestamp ? new Date(b.timestamp).getTime() : 0));
+                                    return bTime - aTime;
+                                });
+                                renderProductionHistory(currentProductionHistoryData);
+                            }, (error2) => {
+                                console.error("Error with fallback query:", error2);
+                                // Final fallback to localStorage
+                                const storageKey = `${STORAGE_KEYS.PRODUCTION_HISTORY}-${userId}`;
+                                const raw = localStorage.getItem(storageKey);
+                                currentProductionHistoryData = raw ? JSON.parse(raw) : [];
+                                renderProductionHistory(currentProductionHistoryData);
+                            });
+                        } catch (e) {
+                            console.error("Error setting up fallback query:", e);
+                            // Final fallback to localStorage
+                            const storageKey = `${STORAGE_KEYS.PRODUCTION_HISTORY}-${userId}`;
+                            const raw = localStorage.getItem(storageKey);
+                            currentProductionHistoryData = raw ? JSON.parse(raw) : [];
+                            renderProductionHistory(currentProductionHistoryData);
+                        }
+                    } else {
+                        // Other error - fallback to localStorage
+                        const storageKey = `${STORAGE_KEYS.PRODUCTION_HISTORY}-${userId}`;
+                        const raw = localStorage.getItem(storageKey);
+                        currentProductionHistoryData = raw ? JSON.parse(raw) : [];
+                        renderProductionHistory(currentProductionHistoryData);
+                    }
+                });
+                
+                // Set up search listener
+                const search = document.getElementById('productionHistorySearch');
+                if (search) {
+                    const newSearch = search.cloneNode(true);
+                    search.parentNode.replaceChild(newSearch, search);
+                    newSearch.addEventListener('input', (e) => {
+                        renderProductionHistory(currentProductionHistoryData, e.target.value);
+                    });
+                }
+            } catch (error) {
+                console.error("Error setting up Firebase listener:", error);
+                const storageKey = `${STORAGE_KEYS.PRODUCTION_HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
+                currentProductionHistoryData = raw ? JSON.parse(raw) : [];
+                renderProductionHistory(currentProductionHistoryData);
+            }
+        }
+
+        function loadProductionEntries() {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                console.warn("User not authenticated");
+                // Still try to load from localStorage as fallback
+                const storageKey = `${STORAGE_KEYS.PRODUCTION_HISTORY}-${userId}`;
+                const raw = localStorage.getItem(storageKey);
+                currentProductionHistoryData = raw ? JSON.parse(raw) : [];
+                renderProductionHistory(currentProductionHistoryData);
+                return;
+            }
+            // Load from localStorage immediately (in case Firebase is slow)
+            const storageKey = `${STORAGE_KEYS.PRODUCTION_HISTORY}-${userId}`;
+            const raw = localStorage.getItem(storageKey);
+            if (raw) {
+                currentProductionHistoryData = JSON.parse(raw);
+                renderProductionHistory(currentProductionHistoryData);
+            }
+            
+            if (checkFirebaseReady()) {
+                setupFirebaseProductionHistoryListener();
+            } else {
+                // Fallback to localStorage
+                currentProductionHistoryData = raw ? JSON.parse(raw) : [];
+                renderProductionHistory(currentProductionHistoryData);
+                const search = document.getElementById('productionHistorySearch');
+                if (search) {
+                    search.addEventListener('input', (e) => {
+                        renderProductionHistory(currentProductionHistoryData, e.target.value);
+                    });
+                }
+            }
+            
+            // Also try to load after a short delay in case Firebase never initializes
+            setTimeout(() => {
+                if (currentProductionHistoryData.length === 0 && raw) {
+                    currentProductionHistoryData = JSON.parse(raw);
+                    renderProductionHistory(currentProductionHistoryData);
+                }
+            }, 2000);
+        }
+
+        function renderProductionHistory(history, filter = "") {
+            const tbody = document.querySelector('#productionHistoryTable tbody');
+            if (!tbody) return;
+            const term = filter.toLowerCase();
+            const filteredHistory = history.filter(h => 
+                !term || 
+                h.operator?.toLowerCase().includes(term) || 
+                h.shift?.toLowerCase().includes(term) || 
+                h.remarks?.toLowerCase().includes(term) ||
+                h.displayTime?.toLowerCase().includes(term)
+            );
+            
+            tbody.innerHTML = filteredHistory.map(h => `
+                <tr data-entry-id="${h.id || ''}">
+                    <td>${h.displayTime || (h.dateTime ? new Date(h.dateTime).toLocaleString() : "")}</td>
+                    <td>${h.operator || ""}</td>
+                    <td>${h.shift || ""}</td>
+                    <td>${h.remarks || ""}</td>
+                    <td>
+                        ${h.id ? `
+                            <button class="btn" style="padding: 6px 12px; font-size: 0.85rem; margin-right: 6px;" onclick="editProductionEntry('${h.id}')">Edit</button>
+                            <button class="btn secondary" style="padding: 6px 12px; font-size: 0.85rem; margin-right: 6px;" onclick="deleteProductionEntry('${h.id}')">Delete</button>
+                            <button class="btn secondary" style="padding: 6px 12px; font-size: 0.85rem; margin-right: 6px;" onclick="downloadProductionEntryPDF('${h.id}')">Download</button>
+                            <button class="btn secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="previewProductionEntryPDF('${h.id}')">Preview</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
         }
 
         function updateProductionField(index, field, value) {
@@ -1813,6 +2282,44 @@
             }
         }
 
+        // Cache for logo image (PDF watermark)
+        let logoImageData = null;
+        let logoAspectRatio = 0.75; // Default aspect ratio
+        
+        // Preload PDF logo image on page load
+        function preloadLogo() {
+            const img = new Image();
+            // Don't use crossOrigin for local files - it causes CORS errors
+            img.onload = function() {
+                try {
+                    // Store aspect ratio for later use
+                    logoAspectRatio = img.height / img.width;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    logoImageData = canvas.toDataURL('image/png');
+                    console.log("PDF Logo preloaded successfully", {
+                        width: img.width,
+                        height: img.height,
+                        aspectRatio: logoAspectRatio
+                    });
+                } catch (e) {
+                    console.error("Failed to convert logo to data URL:", e);
+                    console.warn("Will use text watermark instead");
+                }
+            };
+            img.onerror = function(event) {
+                console.error("Failed to load PDF logo image:", {
+                    src: img.src,
+                    error: event,
+                    message: "Image file 'PDF Logo.png' not found or cannot be loaded. Will use text watermark."
+                });
+            };
+            img.src = 'PDF Logo.png';
+        }
+
         function addWatermark(doc) {
             try {
                 const pageWidth = doc.internal.pageSize.getWidth();
@@ -1820,22 +2327,61 @@
                 const centerX = pageWidth / 2;
                 const centerY = pageHeight / 2;
                 
-                // Save current settings
+                // Try to add logo watermark if available
+                if (logoImageData) {
+                    try {
+                        // Calculate logo size (40% of page width for better visibility)
+                        const logoWidth = pageWidth * 0.4;
+                        // Calculate height based on stored aspect ratio
+                        const logoHeight = logoWidth * logoAspectRatio;
+                        const logoX = centerX - (logoWidth / 2);
+                        const logoY = centerY - (logoHeight / 2);
+                        
+                        // Add logo image with transparency (light faded effect)
+                        // Use setGState for opacity if available
+                        try {
+                            // Save graphics state
+                            doc.saveGraphicsState();
+                            // Set opacity to 0.15 for light faded watermark effect
+                            doc.setGState(doc.GState({opacity: 0.15, 'stroke-opacity': 0.15}));
+                        } catch (e) {
+                            // If setGState not available, try alternative
+                            console.warn("setGState not available, using alternative transparency method");
+                        }
+                        
+                        // Add the image - this will appear behind all content
+                        doc.addImage(logoImageData, 'PNG', logoX, logoY, logoWidth, logoHeight, undefined, 'FAST');
+                        
+                        // Restore graphics state
+                        try {
+                            doc.restoreGraphicsState();
+                        } catch (e) {
+                            // If restore not available, reset opacity manually
+                            try {
+                                doc.setGState(doc.GState({opacity: 1.0, 'stroke-opacity': 1.0}));
+                            } catch (e2) {
+                                // Ignore if not available
+                            }
+                        }
+                        return; // Exit early - don't add text watermark
+                    } catch (e) {
+                        console.warn("Failed to add logo watermark, using text fallback:", e);
+                        // Continue to text fallback below
+                    }
+                }
+                
+                // Fallback to text watermark only if logo is not available
                 const currentTextColor = doc.getTextColor();
                 const currentFontSize = doc.getFontSize();
                 const currentFont = doc.getFont();
                 
-                // Set watermark properties - light gray, large, bold
                 doc.setTextColor(220, 220, 220);
                 doc.setFontSize(50);
                 doc.setFont(undefined, 'bold');
                 
-                // Add watermark text (diagonal placement)
                 const text = "Cognizant Chemical Pvt. Ltd.";
                 const textWidth = doc.getTextWidth(text);
                 
-                // Place watermark in center with slight offset for diagonal effect
-                // Since jsPDF may not support rotation directly, we'll place it multiple times
                 doc.text(text, centerX - textWidth/2, centerY - 20);
                 doc.text(text, centerX - textWidth/2, centerY + 20);
                 
@@ -2311,6 +2857,11 @@
         let currentEditData = null;
         
         async function editEntry(entryId) {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to edit entries.");
+                return;
+            }
             if (!checkFirebaseReady()) {
                 alert("Firebase not initialized. Cannot edit entry.");
                 return;
@@ -2326,8 +2877,14 @@
                     return;
                 }
                 
+                const entryData = entrySnap.data();
+                if (entryData.userId !== userId) {
+                    alert("You can only edit your own entries.");
+                    return;
+                }
+                
                 currentEditId = entryId;
-                currentEditData = entrySnap.data();
+                currentEditData = entryData;
                 
                 // Populate edit form
                 document.getElementById('editOperator').value = currentEditData.operator || '';
@@ -2414,6 +2971,11 @@
         }
         
         async function deleteEntry(entryId) {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to delete entries.");
+                return;
+            }
             if (!checkFirebaseReady()) {
                 alert("Firebase not initialized. Cannot delete entry.");
                 return;
@@ -2424,8 +2986,21 @@
             }
             
             try {
-                const { doc, deleteDoc } = window.firebaseDB;
+                const { doc, getDoc, deleteDoc } = window.firebaseDB;
                 const entryRef = doc(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES, entryId);
+                const entrySnap = await getDoc(entryRef);
+                
+                if (!entrySnap.exists()) {
+                    alert("Entry not found.");
+                    return;
+                }
+                
+                const entryData = entrySnap.data();
+                if (entryData.userId !== userId) {
+                    alert("You can only delete your own entries.");
+                    return;
+                }
+                
                 await deleteDoc(entryRef);
                 alert("Entry deleted successfully!");
                 // Real-time listener will automatically update the UI
@@ -2444,14 +3019,360 @@
         window.openEndTimeModal = openEndTimeModal;
         window.closeEndTimeModal = closeEndTimeModal;
         window.saveEndTime = saveEndTime;
+        // Production Entry CRUD Functions
+        let currentProductionEditId = null;
+        let currentProductionEditData = null;
+        let currentPreviewEntryId = null;
+
+        async function editProductionEntry(entryId) {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to edit entries.");
+                return;
+            }
+            if (!checkFirebaseReady()) {
+                alert("Firebase not initialized. Cannot edit entry.");
+                return;
+            }
+            
+            try {
+                const { collection, doc, getDoc } = window.firebaseDB;
+                const entryRef = doc(window.firebaseDB.db, FIREBASE_COLLECTIONS.PRODUCTION_ENTRIES, entryId);
+                const entrySnap = await getDoc(entryRef);
+                
+                if (!entrySnap.exists()) {
+                    alert("Entry not found.");
+                    return;
+                }
+                
+                const entryData = entrySnap.data();
+                if (entryData.userId !== userId) {
+                    alert("You can only edit your own entries.");
+                    return;
+                }
+                
+                currentProductionEditId = entryId;
+                currentProductionEditData = entryData;
+                
+                // Populate edit form
+                document.getElementById('editProductionOperator').value = currentProductionEditData.operator || '';
+                document.getElementById('editProductionShift').value = currentProductionEditData.shift || '';
+                document.getElementById('editProductionRemarks').value = currentProductionEditData.remarks || '';
+                
+                // Populate production data table
+                const tbody = document.getElementById('editProductionDataBody');
+                tbody.innerHTML = (currentProductionEditData.data || []).map((row, i) => `
+                    <tr>
+                        <td><input type="text" id="edit-prod-reactor-${i}" value="${row.reactor || ''}" style="width: 100%; padding: 4px;"></td>
+                        <td><input type="text" id="edit-prod-product-${i}" value="${row.product || ''}" style="width: 100%; padding: 4px;"></td>
+                        <td><input type="text" id="edit-prod-batch-${i}" value="${row.batch || ''}" style="width: 100%; padding: 4px;"></td>
+                        <td><input type="text" id="edit-prod-start-${i}" value="${row.start || ''}" style="width: 100%; padding: 4px;"></td>
+                        <td><input type="text" id="edit-prod-expectedEnd-${i}" value="${row.expectedEnd || ''}" style="width: 100%; padding: 4px;"></td>
+                        <td><input type="text" id="edit-prod-endTime-${i}" value="${row.endTime || ''}" style="width: 100%; padding: 4px;"></td>
+                        <td><input type="number" id="edit-prod-qty-${i}" value="${row.qty || 0}" style="width: 80px; padding: 4px;"></td>
+                        <td><input type="text" id="edit-prod-tank-${i}" value="${row.tank || ''}" style="width: 100%; padding: 4px;"></td>
+                        <td><input type="number" min="0" max="100" id="edit-prod-progress-${i}" value="${row.progress || 0}" style="width: 80px; padding: 4px;"></td>
+                        <td>
+                            <select id="edit-prod-status-${i}" style="width: 100%; padding: 4px;">
+                                <option ${row.status==="On Track"?"selected":""}>On Track</option>
+                                <option ${row.status==="Watch"?"selected":""}>Watch</option>
+                                <option ${row.status==="Delayed"?"selected":""}>Delayed</option>
+                            </select>
+                        </td>
+                    </tr>
+                `).join('');
+                
+                // Show modal
+                document.getElementById('editProductionEntryModal').classList.add('active');
+            } catch (error) {
+                console.error("Error loading entry for edit:", error);
+                alert("Error loading entry. Please try again.");
+            }
+        }
+        
+        function closeEditProductionModal() {
+            document.getElementById('editProductionEntryModal').classList.remove('active');
+            currentProductionEditId = null;
+            currentProductionEditData = null;
+        }
+        
+        async function saveEditedProductionEntry() {
+            if (!currentProductionEditId || !checkFirebaseReady()) {
+                alert("Cannot save. Firebase not initialized.");
+                return;
+            }
+            
+            const operator = document.getElementById('editProductionOperator').value.trim();
+            const shift = document.getElementById('editProductionShift').value;
+            
+            if (!operator || !shift) {
+                alert("Operator and Shift are required.");
+                return;
+            }
+            
+            // Collect updated production data
+            const updatedData = (currentProductionEditData.data || []).map((row, i) => ({
+                reactor: document.getElementById(`edit-prod-reactor-${i}`)?.value || '',
+                product: document.getElementById(`edit-prod-product-${i}`)?.value || '',
+                batch: document.getElementById(`edit-prod-batch-${i}`)?.value || '',
+                start: document.getElementById(`edit-prod-start-${i}`)?.value || '',
+                expectedEnd: document.getElementById(`edit-prod-expectedEnd-${i}`)?.value || '',
+                endTime: document.getElementById(`edit-prod-endTime-${i}`)?.value || '',
+                qty: parseFloat(document.getElementById(`edit-prod-qty-${i}`)?.value || 0),
+                tank: document.getElementById(`edit-prod-tank-${i}`)?.value || '',
+                progress: parseFloat(document.getElementById(`edit-prod-progress-${i}`)?.value || 0),
+                status: document.getElementById(`edit-prod-status-${i}`)?.value || 'On Track',
+                duration: row.duration || '',
+                timeLeft: row.timeLeft || ''
+            }));
+            
+            const ts = new Date();
+            
+            try {
+                const { doc, updateDoc, serverTimestamp } = window.firebaseDB;
+                const entryRef = doc(window.firebaseDB.db, FIREBASE_COLLECTIONS.PRODUCTION_ENTRIES, currentProductionEditId);
+                
+                await updateDoc(entryRef, {
+                    operator,
+                    shift,
+                    remarks: document.getElementById('editProductionRemarks').value || '',
+                    data: updatedData,
+                    dateTime: ts.toISOString(),
+                    timestamp: ts.toISOString(),
+                    displayTime: ts.toLocaleString(),
+                    updatedAt: serverTimestamp()
+                });
+                
+                alert("Entry updated successfully!");
+                closeEditProductionModal();
+                // Real-time listener will automatically update the UI
+            } catch (error) {
+                console.error("Error updating entry:", error);
+                alert("Error updating entry. Please try again.");
+            }
+        }
+        
+        async function deleteProductionEntry(entryId) {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to delete entries.");
+                return;
+            }
+            if (!checkFirebaseReady()) {
+                alert("Firebase not initialized. Cannot delete entry.");
+                return;
+            }
+            
+            if (!confirm("Are you sure you want to delete this entry? This action cannot be undone.")) {
+                return;
+            }
+            
+            try {
+                const { doc, getDoc, deleteDoc } = window.firebaseDB;
+                const entryRef = doc(window.firebaseDB.db, FIREBASE_COLLECTIONS.PRODUCTION_ENTRIES, entryId);
+                const entrySnap = await getDoc(entryRef);
+                
+                if (!entrySnap.exists()) {
+                    alert("Entry not found.");
+                    return;
+                }
+                
+                const entryData = entrySnap.data();
+                if (entryData.userId !== userId) {
+                    alert("You can only delete your own entries.");
+                    return;
+                }
+                
+                await deleteDoc(entryRef);
+                alert("Entry deleted successfully!");
+                // Real-time listener will automatically update the UI
+            } catch (error) {
+                console.error("Error deleting entry:", error);
+                alert("Error deleting entry. Please try again.");
+            }
+        }
+
+        async function downloadProductionEntryPDF(entryId) {
+            const userId = getCurrentUserId();
+            if (!userId) {
+                alert("You must be logged in to download PDFs.");
+                return;
+            }
+            if (!checkFirebaseReady()) {
+                alert("Firebase not initialized. Cannot download PDF.");
+                return;
+            }
+            
+            try {
+                const { collection, doc, getDoc } = window.firebaseDB;
+                const entryRef = doc(window.firebaseDB.db, FIREBASE_COLLECTIONS.PRODUCTION_ENTRIES, entryId);
+                const entrySnap = await getDoc(entryRef);
+                
+                if (!entrySnap.exists()) {
+                    alert("Entry not found.");
+                    return;
+                }
+                
+                const entryData = entrySnap.data();
+                if (entryData.userId !== userId) {
+                    alert("You can only download your own entries.");
+                    return;
+                }
+                
+                generateProductionEntryPDF(entryData, entryId);
+            } catch (error) {
+                console.error("Error downloading PDF:", error);
+                alert("Error downloading PDF. Please try again.");
+            }
+        }
+
+        function generateProductionEntryPDF(entryData, entryId) {
+            if (!window.jspdf) return alert("jsPDF not loaded");
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: "portrait", unit: 'mm', format: 'a4' });
+            const data = entryData.data || [];
+
+            // Add watermark
+            addWatermark(doc);
+
+            pdfHeader(doc, "Daily Production Entry", `Generated: ${new Date().toLocaleString()}`);
+            
+            // Add entry metadata
+            let y = 40;
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Operator: ${entryData.operator || ''}`, 14, y);
+            y += 6;
+            doc.text(`Shift: ${entryData.shift || ''}`, 14, y);
+            y += 6;
+            doc.text(`Remarks: ${entryData.remarks || ''}`, 14, y);
+            y += 6;
+            doc.text(`Date/Time: ${entryData.displayTime || entryData.dateTime || ''}`, 14, y);
+            y += 10;
+
+            // Table headers
+            const headers = ["Reactor","Product","Batch","Start","Exp. End","End Time","Duration","Qty","Tank","Progress","Status"];
+            const colWidths = [18, 20, 22, 25, 25, 25, 18, 15, 15, 15, 18];
+            let xPos = [14];
+            for (let i = 1; i < colWidths.length; i++) {
+                xPos.push(xPos[i-1] + colWidths[i-1]);
+            }
+            
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const pageWidth = doc.internal.pageSize.getWidth();
+
+            // Header row
+            doc.setFillColor(29, 78, 216);
+            doc.setTextColor(255, 255, 255);
+            doc.rect(12, y - 6, pageWidth - 24, 8, "F");
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'bold');
+            headers.forEach((h, idx) => {
+                if (xPos[idx] + colWidths[idx] < pageWidth - 12) {
+                    doc.text(h, xPos[idx], y);
+                }
+            });
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            y += 7;
+
+            // Data rows
+            data.forEach((row) => {
+                if (y > pageHeight - 30) {
+                    doc.addPage();
+                    addWatermark(doc);
+                    pdfHeader(doc, "Daily Production Entry (cont.)", `Generated: ${new Date().toLocaleString()}`);
+                    y = 40;
+                    doc.setFillColor(29, 78, 216);
+                    doc.setTextColor(255, 255, 255);
+                    doc.rect(12, y - 6, pageWidth - 24, 8, "F");
+                    doc.setFontSize(8);
+                    doc.setFont(undefined, 'bold');
+                    headers.forEach((h, idx) => {
+                        if (xPos[idx] + colWidths[idx] < pageWidth - 12) {
+                            doc.text(h, xPos[idx], y);
+                        }
+                    });
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont(undefined, 'normal');
+                    y += 7;
+                }
+                
+                doc.setFontSize(7);
+                const values = [
+                    String(row.reactor||""),
+                    String(row.product||""),
+                    String(row.batch||""),
+                    String(row.start||""),
+                    String(row.expectedEnd||""),
+                    String(row.endTime||"-"),
+                    String(row.duration||""),
+                    String(row.qty||""),
+                    String(row.tank||""),
+                    `${row.progress||0}%`,
+                    String(row.status||"")
+                ];
+                
+                values.forEach((val, idx) => {
+                    if (xPos[idx] + colWidths[idx] < pageWidth - 12) {
+                        const maxWidth = colWidths[idx] - 2;
+                        const text = doc.splitTextToSize(val, maxWidth);
+                        doc.text(text[0] || val.substring(0, 15), xPos[idx], y);
+                    }
+                });
+                y += 8;
+            });
+            
+            doc.setProperties({
+                title: 'CCPL Production Entry',
+                subject: 'Daily Production Report',
+                author: 'Cognizant Chemical Pvt. Ltd.',
+                keywords: 'production, report, tank operations',
+                creator: 'CCPL Tank Operations System'
+            });
+            
+            doc.save(`production-entry-${entryId}.pdf`);
+        }
+
+        async function previewProductionEntryPDF(entryId) {
+            currentPreviewEntryId = entryId;
+            document.getElementById('pdfPreviewModal').classList.add('active');
+        }
+
+        function closePDFPreviewModal() {
+            document.getElementById('pdfPreviewModal').classList.remove('active');
+            currentPreviewEntryId = null;
+        }
+
+        function downloadCurrentPreviewPDF() {
+            if (currentPreviewEntryId) {
+                downloadProductionEntryPDF(currentPreviewEntryId);
+                closePDFPreviewModal();
+            }
+        }
+
         window.editEntry = editEntry;
         window.deleteEntry = deleteEntry;
         window.closeEditModal = closeEditModal;
         window.saveEditedEntry = saveEditedEntry;
         window.exportCSV = exportCSV;
         window.importCSV = importCSV;
+        window.saveProductionSnapshot = saveProductionSnapshot;
+        window.viewAllProductionEntries = viewAllProductionEntries;
+        window.closeProductionEntriesView = closeProductionEntriesView;
+        window.editProductionEntry = editProductionEntry;
+        window.deleteProductionEntry = deleteProductionEntry;
+        window.closeEditProductionModal = closeEditProductionModal;
+        window.saveEditedProductionEntry = saveEditedProductionEntry;
+        window.downloadProductionEntryPDF = downloadProductionEntryPDF;
+        window.previewProductionEntryPDF = previewProductionEntryPDF;
+        window.closePDFPreviewModal = closePDFPreviewModal;
+        window.downloadCurrentPreviewPDF = downloadCurrentPreviewPDF;
 
         window.addEventListener('resize', resizeRenderer);
+        
+        // Preload logo image
+        preloadLogo();
         
         // Check authentication on load
         if (checkAuth()) {
