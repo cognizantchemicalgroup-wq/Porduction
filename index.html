@@ -1,0 +1,2469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Tank Operations View</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Firebase SDK v9+ (modular) -->
+    <script type="module">
+        // Firebase configuration - REPLACE WITH YOUR CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyAc5MbNDFArI8wiZ9T89vWqB77DfM1mqnU",
+            authDomain: "ccpl-tank-operations.firebaseapp.com",
+            projectId: "ccpl-tank-operations",
+            storageBucket: "ccpl-tank-operations.firebasestorage.app",
+            messagingSenderId: "152975814174",
+            appId: "1:152975814174:web:6a007b82d6388877de480f",
+            measurementId: "G-V0TZEEWDWC"
+        };
+        
+        // Dynamically import Firebase modules
+        Promise.all([
+            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js'),
+            import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js')
+        ]).then(([firebaseApp, firestore]) => {
+            // Initialize Firebase
+            const app = firebaseApp.initializeApp(firebaseConfig);
+            const db = firestore.getFirestore(app);
+            
+            // Make Firebase functions available globally
+            window.firebaseDB = {
+                db,
+                collection: firestore.collection,
+                addDoc: firestore.addDoc,
+                getDocs: firestore.getDocs,
+                getDoc: firestore.getDoc,
+                doc: firestore.doc,
+                updateDoc: firestore.updateDoc,
+                deleteDoc: firestore.deleteDoc,
+                onSnapshot: firestore.onSnapshot,
+                query: firestore.query,
+                orderBy: firestore.orderBy,
+                serverTimestamp: firestore.serverTimestamp
+            };
+            
+            // Initialize Firebase connection status
+            window.firebaseInitialized = true;
+            console.log("Firebase initialized successfully");
+        }).catch(error => {
+            console.error("Error initializing Firebase:", error);
+            window.firebaseInitialized = false;
+        });
+    </script>
+    <style>
+        :root {
+            --blue: #1d4ed8;
+            --blue-dark: #0f2b6c;
+            --blue-light: #3b82f6;
+            --blue-lighter: #60a5fa;
+            --accent: #0ea5e9;
+            --accent-light: #38bdf8;
+            --slate: #4a5568;
+            --slate-light: #64748b;
+            --bg: #f0f4f8;
+            --bg-light: #f8fafc;
+            --card: #ffffff;
+            --border: #cbd5e0;
+            --border-light: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+        * { 
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, var(--bg-light) 100%);
+            color: var(--slate);
+            line-height: 1.6;
+        }
+        .page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05), 0 10px 25px rgba(0,0,0,0.08);
+            border: 1px solid var(--border-light);
+            transition: box-shadow 0.3s ease, transform 0.2s ease;
+        }
+        .card:hover {
+            box-shadow: 0 8px 12px rgba(0,0,0,0.08), 0 15px 35px rgba(0,0,0,0.12);
+        }
+        .hero {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px 28px;
+            background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 50%, var(--accent) 100%);
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(29, 78, 216, 0.3);
+        }
+        .hero-title h1 { 
+            margin: 0; 
+            color: #fff; 
+            font-size: 1.75rem; 
+            letter-spacing: 0.5px; 
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .hero-title p { 
+            margin: 6px 0 0; 
+            color: #e0e8ff; 
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        .brand-mark { 
+            display:flex; 
+            align-items:center; 
+            gap:14px; 
+            font-weight:700; 
+        }
+        .brand-mark .logo-dot { 
+            width:48px; 
+            height:48px; 
+            border-radius:50%; 
+            background:#fff; 
+            color:var(--blue-dark); 
+            display:flex; 
+            align-items:center; 
+            justify-content:center; 
+            font-weight:800; 
+            font-size: 1.1rem;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .legend {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .legend-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            font-size: 0.95rem; 
+            background: rgba(255,255,255,0.15);
+            padding: 6px 12px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        .dot { 
+            width: 12px; 
+            height: 12px; 
+            border-radius: 50%; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .toggle-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            font-size: 0.95rem;
+        }
+        .toggle-btn:hover { 
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .toggle-btn.active { 
+            background: var(--success);
+            border-color: var(--success);
+        }
+        .main {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            align-items: stretch;
+        }
+        .viewport-card { 
+            padding: 16px; 
+            position: relative; 
+        }
+        #viewport {
+            position: relative;
+            width: 100%;
+            height: 60vh;
+            min-height: 420px;
+            background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+            border: 2px solid var(--border-light);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+        #labelsLayer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+        }
+        .label {
+            position: absolute;
+            background: rgba(29, 78, 216, 0.9);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            pointer-events: none;
+            white-space: nowrap;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .tank-title { 
+            font-size: 14px; 
+            background: rgba(29, 78, 216, 0.95); 
+            padding: 8px 14px; 
+            font-weight: 700;
+        }
+        .stock-panel {
+            padding: 24px;
+        }
+        .stock-panel h2, .stock-panel h3 { 
+            margin: 0 0 16px 0; 
+            color: var(--blue-dark); 
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .form-row { 
+            display:flex; 
+            gap:16px; 
+            flex-wrap:wrap; 
+            margin-bottom:16px; 
+            align-items: flex-end;
+        }
+        .form-row label { 
+            font-weight:600; 
+            font-size:0.95rem; 
+            color:#1f2937; 
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-row input, .form-row select {
+            padding: 10px 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            min-width: 180px;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            background: white;
+        }
+        .form-row input:focus, .form-row select:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+        }
+        table.stock-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            margin-top: 12px;
+        }
+        table.stock-table th, table.stock-table td {
+            border: 1px solid var(--border-light);
+            padding: 12px;
+            text-align: left;
+        }
+        table.stock-table th {
+            background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
+            color: #fff;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+        table.stock-table tbody tr {
+            transition: background 0.2s ease;
+        }
+        table.stock-table tbody tr:hover {
+            background: #f0f7ff;
+        }
+        table.stock-table input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        table.stock-table input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.1);
+        }
+        .stock-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn {
+            background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(29, 78, 216, 0.2);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(29, 78, 216, 0.3);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn.secondary { 
+            background: linear-gradient(135deg, var(--slate) 0%, var(--slate-light) 100%);
+            box-shadow: 0 4px 6px rgba(74, 85, 104, 0.2);
+        }
+        .btn.secondary:hover {
+            box-shadow: 0 6px 12px rgba(74, 85, 104, 0.3);
+        }
+        .summary-text { 
+            font-size: 1rem; 
+            color: var(--slate); 
+            margin-top: 8px; 
+            font-weight: 500;
+        }
+        .controls-panel { 
+            padding: 20px; 
+        }
+        .control-bar {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .tank-input {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 100px;
+            padding: 12px;
+            background: var(--bg-light);
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+        }
+        .tank-input label {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--blue-dark);
+            margin-bottom: 8px;
+            white-space: nowrap;
+        }
+        .tank-input input[type="range"] { 
+            width: 120px; 
+            cursor: pointer; 
+            accent-color: var(--blue);
+        }
+        .tank-input input[type="number"] {
+            width: 70px;
+            padding: 6px;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            text-align: center;
+            margin-top: 6px;
+            font-weight: 700;
+            color: var(--blue);
+            font-size: 0.95rem;
+        }
+        .tank-input input[type="number"]:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+        }
+        .side-panel {
+            padding: 24px;
+        }
+        .side-panel h2 {
+            color: var(--blue-dark);
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+        #loading {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.3rem;
+            color: var(--blue);
+            background: white;
+            padding: 24px 32px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            z-index: 200;
+            font-weight: 600;
+        }
+        .tech-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .tech-item {
+            padding: 12px;
+            background: var(--bg-light);
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+        }
+        .tech-label {
+            font-weight: 700;
+            color: var(--blue-dark);
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+        .tech-value {
+            color: var(--slate);
+            font-size: 0.85rem;
+        }
+        
+        /* Login Page Styles */
+        #loginPage {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 50%, var(--accent) 100%);
+            padding: 20px;
+        }
+        .login-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 450px;
+            width: 100%;
+        }
+        .login-card h1 {
+            color: var(--blue-dark);
+            margin-bottom: 10px;
+            font-size: 1.8rem;
+            text-align: center;
+        }
+        .login-card p {
+            color: var(--slate);
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .login-form input {
+            padding: 14px 18px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+        .login-form input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+        }
+        .login-btn {
+            background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(29, 78, 216, 0.2);
+        }
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(29, 78, 216, 0.3);
+        }
+        .login-error {
+            color: var(--error);
+            font-size: 0.9rem;
+            margin-top: -10px;
+            text-align: center;
+        }
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .page {
+                padding: 12px;
+                gap: 12px;
+            }
+            .hero {
+                padding: 16px;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .hero-title h1 {
+                font-size: 1.4rem;
+            }
+            .legend {
+                width: 100%;
+                justify-content: flex-start;
+            }
+            .legend-item {
+                font-size: 0.85rem;
+                padding: 4px 8px;
+            }
+            .main {
+                grid-template-columns: 1fr;
+            }
+            #viewport {
+                height: 40vh;
+                min-height: 300px;
+            }
+            .stock-panel, .controls-panel, .side-panel {
+                padding: 16px;
+            }
+            .form-row {
+                flex-direction: column;
+                gap: 12px;
+            }
+            .form-row label {
+                width: 100%;
+            }
+            .form-row input, .form-row select {
+                width: 100%;
+                min-width: auto;
+            }
+            table.stock-table {
+                font-size: 0.8rem;
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+            table.stock-table th, table.stock-table td {
+                padding: 8px 6px;
+            }
+            .control-bar {
+                gap: 8px;
+            }
+            .tank-input {
+                min-width: 80px;
+                padding: 8px;
+            }
+            .tank-input input[type="range"] {
+                width: 100px;
+            }
+            .tank-input input[type="number"] {
+                width: 60px;
+            }
+            .btn {
+                padding: 10px 16px;
+                font-size: 0.9rem;
+            }
+            .stock-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .stock-actions .btn {
+                width: 100%;
+            }
+            .login-card {
+                padding: 30px 20px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .hero-title h1 {
+                font-size: 1.2rem;
+            }
+            .stock-panel h2, .stock-panel h3 {
+                font-size: 1.2rem;
+            }
+            .toggle-btn {
+                padding: 10px 14px;
+                font-size: 0.85rem;
+            }
+        }
+        
+        /* Modal/Popup Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .modal h3 {
+            color: var(--blue-dark);
+            margin-bottom: 16px;
+            font-size: 1.3rem;
+        }
+        .modal-close {
+            float: right;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--slate);
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+        .date-set-btn {
+            background: var(--blue);
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            margin-left: 8px;
+            font-weight: 600;
+        }
+        .date-set-btn:hover {
+            background: var(--blue-light);
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage">
+        <div class="login-card">
+            <h1>CCPL Tank Operations</h1>
+            <p>Cognizant Chemical Pvt. Ltd.</p>
+            <form class="login-form" onsubmit="handleLogin(event)">
+                <input type="text" id="loginUsername" placeholder="Username" required autocomplete="username">
+                <input type="password" id="loginPassword" placeholder="Password" required autocomplete="current-password">
+                <div class="login-error" id="loginError"></div>
+                <button type="submit" class="login-btn">Login</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Main Application -->
+    <div id="mainApp" style="display: none;">
+    <div id="loading">Constructing Tank Fleet...</div>
+    <div class="page">
+        <div class="card hero">
+            <div class="brand-mark">
+                <div class="logo-dot">CC</div>
+                <div class="hero-title">
+                    <h1>CCPL Tank Operations</h1>
+                    <p>Cognizant Chemical Pvt. Ltd.</p>
+                </div>
+            </div>
+            <div class="legend">
+                <button id="smartToggle" class="toggle-btn" onclick="toggleSmartMode()">&#9889; Enable Smart Upgrade</button>
+                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                <span class="legend-item"><span class="dot" style="background:#3182CE"></span>Liquid Level</span>
+                <span class="legend-item"><span class="dot" style="background:#A0AEC0"></span>Steel Shell</span>
+                <span class="legend-item"><span class="dot" style="background:#C53030"></span>Stiffener Rings</span>
+                <span class="legend-item"><span class="dot" style="background:#48BB78"></span>Sensors/Smart</span>
+                <span class="legend-item"><span class="dot" style="background:#8b5a2b"></span>Underground Zone</span>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="card viewport-card">
+                <div id="viewport"></div>
+                <div id="labelsLayer"></div>
+            </div>
+
+            <div class="card side-panel">
+                <h2>Stock Snapshot</h2>
+                <p class="summary-text" id="snapshotText">Loading...</p>
+                <h2 style="margin-top: 24px;">Controls</h2>
+                <p class="summary-text">Orbit: drag | Zoom: scroll | Smart overlay via &#9889; button</p>
+            </div>
+        </div>
+
+        <div class="card stock-panel" id="stockPanel">
+            <h3>Daily Stock Entry</h3>
+            <div class="form-row">
+                <label>Operator <input id="operatorName" type="text" placeholder="Name" required></label>
+                <label>Shift
+                    <select id="shiftSelect">
+                        <option value="">Select shift</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="General">General</option>
+                    </select>
+                </label>
+                <label>Remarks <input id="remarksText" type="text" placeholder="Optional remarks"></label>
+                <button class="btn" onclick="saveSnapshot()">Save Snapshot</button>
+            </div>
+            <table class="stock-table" id="stockTable">
+                <thead>
+                    <tr>
+                        <th>Tank</th>
+                        <th>Capacity (KL)</th>
+                        <th>Level (KL)</th>
+                        <th>Material</th>
+                        <th>GRN #</th>
+                        <th>Date <button class="date-set-btn" onclick="setAllDatesToToday()" title="Set all dates to today">Set All Today</button></th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div class="stock-actions">
+                <button class="btn" onclick="downloadPDF()">Download PDF Summary</button>
+                <span class="summary-text" id="summaryText"></span>
+            </div>
+        </div>
+
+        <div class="card controls-panel">
+            <div class="control-bar" id="controlBar"></div>
+        </div>
+
+        <div class="card stock-panel" id="historyPanel">
+            <h3>History / Audit Trail</h3>
+            <div class="form-row">
+                <label>Search <input id="historySearch" type="text" placeholder="Filter history"></label>
+                <button class="btn secondary" onclick="exportCSV()">Export CSV</button>
+                <label class="btn secondary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+                    Import CSV
+                    <input id="importCSVInput" type="file" accept=".csv" style="display:none;" onchange="importCSV(event)">
+                </label>
+            </div>
+            <table class="stock-table" id="historyTable">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Operator</th>
+                        <th>Shift</th>
+                        <th>Total KL</th>
+                        <th>Remarks</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+            <div class="card stock-panel" id="productionPanel">
+            <h3>Daily Production Entry</h3>
+            <p class="summary-text">Includes Start and Expected End for on-time tracking.</p>
+            <div class="form-row">
+                <button class="btn" onclick="downloadProductionPDF()">Download Production PDF</button>
+                <button class="btn secondary" onclick="downloadCombinedPDF()">Download Combined PDF</button>
+            </div>
+            <table class="stock-table" id="productionTable">
+                <thead>
+                    <tr>
+                        <th>Reactor</th>
+                        <th>Product</th>
+                        <th>Batch #</th>
+                        <th>Start</th>
+                        <th>Expected End</th>
+                        <th>End Time</th>
+                        <th>Duration</th>
+                        <th>Time Left</th>
+                        <th>Qty (L)</th>
+                        <th>Tank</th>
+                        <th>Progress %</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="card side-panel" style="padding:16px;">
+            <details>
+                <summary style="cursor:pointer; font-weight:700; color:#1a365d;">Dimensions & Capacity</summary>
+                <div class="tech-grid" style="margin-top:10px;">
+                    <div class="tech-item"><div class="tech-label">70 KL Vertical</div><div class="tech-value">H ~10 m, Dia ~3 m</div></div>
+                    <div class="tech-item"><div class="tech-label">25 KL ISO</div><div class="tech-value">L 6.1 m, W 2.4 m, H 2.6 m</div></div>
+                    <div class="tech-item"><div class="tech-label">50 KL ISO</div><div class="tech-value">L 7.5 m, W 2.7 m, H 3.0 m</div></div>
+                    <div class="tech-item"><div class="tech-label">Underground</div><div class="tech-value">Buried Cylinders</div></div>
+                </div>
+            </details>
+            <details style="margin-top:10px;">
+                <summary style="cursor:pointer; font-weight:700; color:#1a365d;">Design & Notes</summary>
+                <div class="tech-grid" style="margin-top:10px;">
+                    <div class="tech-item"><div class="tech-label">Design Code</div><div class="tech-value">ASME Sec VIII</div></div>
+                    <div class="tech-item"><div class="tech-label">Pressure</div><div class="tech-value">Atmospheric</div></div>
+                </div>
+                <div class="summary-text" style="margin-top:10px; line-height:1.4;">
+                    <p><strong>25KL ISO:</strong> 20 ft x 8 ft x 8 ft 6 in visualized.</p>
+                    <p><strong>Underground Tanks:</strong> Shown below grade for clarity.</p>
+                    <p><strong>Safety:</strong> Earthing boss at bottom shell for static dissipation.</p>
+                </div>
+            </details>
+        </div>
+    </div>
+    </div>
+    
+    <!-- End Time Modal -->
+    <div id="endTimeModal" class="modal-overlay" onclick="if(event.target.id === 'endTimeModal') closeEndTimeModal()">
+        <div class="modal">
+            <button class="modal-close" onclick="closeEndTimeModal()">&times;</button>
+            <h3>Set End Time</h3>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <label>
+                    Date:
+                    <input type="date" id="endDateInput" style="width: 100%; padding: 10px; margin-top: 6px; border: 2px solid var(--border); border-radius: 8px;">
+                </label>
+                <label>
+                    Time:
+                    <input type="time" id="endTimeInput" style="width: 100%; padding: 10px; margin-top: 6px; border: 2px solid var(--border); border-radius: 8px;">
+                </label>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn" onclick="saveEndTime()" style="flex: 1;">Save</button>
+                    <button class="btn secondary" onclick="closeEndTimeModal()" style="flex: 1;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Entry Modal -->
+    <div id="editEntryModal" class="modal-overlay" onclick="if(event.target.id === 'editEntryModal') closeEditModal()">
+        <div class="modal" style="max-width: 600px;">
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            <h3>Edit Stock Entry</h3>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <label>
+                    Operator:
+                    <input type="text" id="editOperator" style="width: 100%; padding: 10px; margin-top: 6px; border: 2px solid var(--border); border-radius: 8px;">
+                </label>
+                <label>
+                    Shift:
+                    <select id="editShift" style="width: 100%; padding: 10px; margin-top: 6px; border: 2px solid var(--border); border-radius: 8px;">
+                        <option value="">Select shift</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="General">General</option>
+                    </select>
+                </label>
+                <label>
+                    Remarks:
+                    <input type="text" id="editRemarks" style="width: 100%; padding: 10px; margin-top: 6px; border: 2px solid var(--border); border-radius: 8px;">
+                </label>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="stock-table" style="font-size: 0.85rem;">
+                        <thead>
+                            <tr>
+                                <th>Tank</th>
+                                <th>Capacity</th>
+                                <th>Level</th>
+                                <th>Material</th>
+                                <th>GRN #</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="editStockDataBody"></tbody>
+                    </table>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn" onclick="saveEditedEntry()" style="flex: 1;">Save Changes</button>
+                    <button class="btn secondary" onclick="closeEditModal()" style="flex: 1;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, controls;
+        let viewportEl, labelsLayer;
+        const tankLiquids = [];
+        const smartGroups = [];
+        const labels = [];
+
+        const STORAGE_KEYS = {
+            CURRENT: "ccpl-current",
+            HISTORY: "ccpl-history",
+            PRODUCTION: "ccpl-production"
+        };
+        
+        // Firebase collections
+        const FIREBASE_COLLECTIONS = {
+            STOCK_ENTRIES: "stockEntries",
+            PRODUCTION_ENTRIES: "productionEntries"
+        };
+        
+        // Firebase initialization check
+        let firebaseReady = false;
+        const checkFirebaseReady = () => {
+            if (window.firebaseDB && window.firebaseInitialized) {
+                firebaseReady = true;
+                return true;
+            }
+            return false;
+        };
+        
+        // Wait for Firebase to initialize
+        const waitForFirebase = (callback, maxAttempts = 50) => {
+            let attempts = 0;
+            const checkInterval = setInterval(() => {
+                attempts++;
+                if (checkFirebaseReady()) {
+                    clearInterval(checkInterval);
+                    callback();
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    console.warn("Firebase initialization timeout. Using localStorage fallback.");
+                }
+            }, 100);
+        };
+
+        const TANKS = [
+            { name: "TANK1", capacity: 25, type: "iso" },
+            { name: "TANK2", capacity: 25, type: "iso" },
+            { name: "TANK3", capacity: 25, type: "iso" },
+            { name: "TANK4", capacity: 25, type: "iso" },
+            { name: "TANK5", capacity: 25, type: "iso" },
+            { name: "TANK6", capacity: 25, type: "iso" },
+            { name: "TANK7", capacity: 25, type: "iso" },
+            { name: "TANK8", capacity: 50, type: "iso" },
+            { name: "TANK09", capacity: 50, type: "iso" },
+            { name: "UGT1", capacity: 25, type: "underground" },
+            { name: "UGT2", capacity: 25, type: "underground" },
+            { name: "UGT3", capacity: 25, type: "underground" },
+            { name: "UGT4", capacity: 25, type: "underground" },
+            { name: "TANK11", capacity: 70, type: "vertical" },
+            { name: "TANK12", capacity: 70, type: "vertical" },
+            { name: "TANK13", capacity: 70, type: "vertical" },
+            { name: "TANK14", capacity: 70, type: "vertical" },
+            { name: "RESERVE", capacity: 25, type: "vertical" }
+        ];
+
+        const DEFAULT_PRODUCTION = [
+            { reactor: "R-1", product: "PIP(M)", batch: "2511906", start: "23-Nov 6:15 AM", expectedEnd: "23-Nov 2:00 PM", endTime: "", duration: "7:45", timeLeft: "5:00", qty: 5000, tank: "T-7", progress: 64, status: "On Track" },
+            { reactor: "R-2", product: "DMF", batch: "2511904", start: "22-Nov 10:00 PM", expectedEnd: "23-Nov 11:30 AM", endTime: "", duration: "13:30", timeLeft: "2:30", qty: 8000, tank: "T-8", progress: 65, status: "On Track" },
+            { reactor: "R-3", product: "NPA", batch: "2511905", start: "23-Nov 7:30 AM", expectedEnd: "23-Nov 4:00 PM", endTime: "", duration: "8:30", timeLeft: "7:00", qty: 6000, tank: "T-10", progress: 30, status: "Watch" },
+            { reactor: "R-4", product: "NPA(ST)", batch: "2511884", start: "21-Nov 6:00 PM", expectedEnd: "23-Nov 12:00 PM", endTime: "", duration: "42:00", timeLeft: "3:00", qty: 5500, tank: "T-11", progress: 89, status: "On Track" }
+        ];
+        
+        // Login System
+        const VALID_USERS = {
+            'production1': 'prod1@2024',
+            'production2': 'prod2@2024',
+            'production3': 'prod3@2024',
+            'production4': 'prod4@2024',
+            'production5': 'prod5@2024'
+        };
+        
+        function checkAuth() {
+            const auth = localStorage.getItem('ccpl-auth');
+            if (auth) {
+                try {
+                    const authData = JSON.parse(auth);
+                    if (authData.user && VALID_USERS[authData.user] && authData.expires > Date.now()) {
+                        document.getElementById('loginPage').style.display = 'none';
+                        document.getElementById('mainApp').style.display = 'block';
+                        return true;
+                    }
+                } catch (e) {
+                    localStorage.removeItem('ccpl-auth');
+                }
+            }
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('mainApp').style.display = 'none';
+            return false;
+        }
+        
+        function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim().toLowerCase();
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            if (VALID_USERS[username] && VALID_USERS[username] === password) {
+                const authData = {
+                    user: username,
+                    expires: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+                };
+                localStorage.setItem('ccpl-auth', JSON.stringify(authData));
+                errorDiv.textContent = '';
+                checkAuth();
+            } else {
+                errorDiv.textContent = 'Invalid username or password';
+                document.getElementById('loginPassword').value = '';
+            }
+        }
+        
+        function handleLogout() {
+            localStorage.removeItem('ccpl-auth');
+            checkAuth();
+        }
+        
+        function setAllDatesToToday() {
+            const today = new Date().toISOString().split('T')[0];
+            TANKS.forEach((t, i) => {
+                const dateInput = document.getElementById(`stock-date-${i}`);
+                if (dateInput) {
+                    dateInput.value = today;
+                    updateSummary();
+                }
+            });
+        }
+
+        function init() {
+            viewportEl = document.getElementById('viewport');
+            labelsLayer = document.getElementById('labelsLayer');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f2f5);
+            scene.fog = new THREE.Fog(0xf0f2f5, 30, 140);
+
+            camera = new THREE.PerspectiveCamera(50, 1, 0.1, 500);
+            camera.position.set(0, 16, 55);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            viewportEl.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 5, -10);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+            scene.add(ambientLight);
+            
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(20, 30, 20);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            const groundGeo = new THREE.PlaneGeometry(220, 220);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -0.1;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            const soilGeo = new THREE.PlaneGeometry(220, 220);
+            const soilMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+            const soil = new THREE.Mesh(soilGeo, soilMat);
+            soil.rotation.x = -Math.PI / 2;
+            soil.position.y = 0;
+            soil.receiveShadow = false;
+            scene.add(soil);
+
+            buildControls();
+            buildStockTable();
+            buildFleet();
+            resizeRenderer();
+            loadSavedState();
+            buildHistoryTable();
+            buildProductionTable();
+
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function buildControls() {
+            const bar = document.getElementById('controlBar');
+            bar.innerHTML = TANKS.map((t, i) => `
+                <div class="tank-input" data-index="${i}">
+                    <label>${t.name}</label>
+                    <input type="range" min="0" max="${t.capacity}" value="${Math.round(t.capacity * 0.5)}" oninput="updateTankLevel(${i}, this.value)">
+                    <input type="number" id="val-${i}" value="${Math.round(t.capacity * 0.5)}" min="0" max="${t.capacity}" onchange="updateTankLevel(${i}, this.value)">
+                </div>
+            `).join('');
+        }
+
+        function buildStockTable() {
+            const tbody = document.querySelector('#stockTable tbody');
+            tbody.innerHTML = TANKS.map((t, i) => `
+                <tr data-index="${i}">
+                    <td>${t.name}</td>
+                    <td>${t.capacity}</td>
+                    <td><input type="number" id="stock-level-${i}" value="${Math.round(t.capacity * 0.5)}" min="0" max="${t.capacity}" onchange="updateTankLevel(${i}, this.value)"></td>
+                    <td><input type="text" id="stock-material-${i}" placeholder="Material" oninput="updateSummary()"></td>
+                    <td><input type="text" id="stock-grn-${i}" placeholder="GRN #" oninput="updateSummary()"></td>
+                    <td><input type="date" id="stock-date-${i}" onchange="updateSummary()"></td>
+                </tr>
+            `).join('');
+            updateSummary();
+        }
+
+        function buildFleet() {
+            const cols = 6;
+            const spacingX = 8;
+            const spacingZ = 12;
+
+            TANKS.forEach((tank, i) => {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                const x = (col - (cols - 1) / 2) * spacingX;
+                const z = -row * spacingZ;
+                createTank(tank, i, x, z);
+            });
+
+            TANKS.forEach((t, i) => updateTankLevel(i, Math.round(t.capacity * 0.5)));
+        }
+
+        function createTank(tank, index, xPos, zPos) {
+            const tankGroup = new THREE.Group();
+            tankGroup.position.set(xPos, 0, zPos);
+            scene.add(tankGroup);
+
+            if (tank.type === "iso") {
+                createIsoTank(tank, index, tankGroup);
+            } else if (tank.type === "underground") {
+                createUndergroundTank(tank, index, tankGroup);
+            } else {
+                createVerticalTank(tank, index, tankGroup);
+            }
+        }
+
+        function createVerticalTank(tank, index, group) {
+            const baseHeight = 10;
+            const height = baseHeight * (tank.capacity / 70);
+            const radius = 1.5 * Math.sqrt(tank.capacity / 70);
+
+            const steelMat = new THREE.MeshStandardMaterial({ color: 0xA0AEC0, roughness: 0.35, metalness: 0.4, transparent: true, opacity: 0.5 });
+            const solidSteelMat = new THREE.MeshStandardMaterial({ color: 0x718096, roughness: 0.5, metalness: 0.2 });
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0xC53030 });
+            const liquidMat = new THREE.MeshStandardMaterial({ color: 0x3182CE, transparent: true, opacity: 0.85, roughness: 0.1 });
+            const upgradeMat = new THREE.MeshStandardMaterial({ color: 0x48BB78 });
+
+            const shellGeo = new THREE.CylinderGeometry(radius, radius, height, 32, 1, true);
+            const shell = new THREE.Mesh(shellGeo, steelMat);
+            shell.position.y = height / 2;
+            shell.material.side = THREE.DoubleSide;
+            group.add(shell);
+
+            const liquidGeo = new THREE.CylinderGeometry(radius * 0.98, radius * 0.98, height, 32);
+            liquidGeo.translate(0, height / 2, 0);
+            const liquid = new THREE.Mesh(liquidGeo, liquidMat);
+            liquid.scale.y = 0;
+            group.add(liquid);
+            tankLiquids[index] = { mesh: liquid, height: height };
+
+            const roofGeo = new THREE.ConeGeometry(radius, 0.5, 32);
+            const roof = new THREE.Mesh(roofGeo, solidSteelMat);
+            roof.position.y = height + 0.25;
+            group.add(roof);
+
+            const baseGeo = new THREE.CylinderGeometry(radius + 0.2, radius + 0.2, 0.2, 32);
+            const base = new THREE.Mesh(baseGeo, solidSteelMat);
+            base.position.y = -0.1;
+            group.add(base);
+
+            const ringGeo = new THREE.TorusGeometry(radius + 0.02, 0.05, 8, 64);
+            [height * 0.25, height * 0.5, height * 0.75].forEach(h => {
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2;
+                ring.position.y = h;
+                group.add(ring);
+            });
+
+            const ladderGroup = new THREE.Group();
+            const railGeo = new THREE.BoxGeometry(0.05, height, 0.05);
+            const rail1 = new THREE.Mesh(railGeo, solidSteelMat);
+            const rail2 = new THREE.Mesh(railGeo, solidSteelMat);
+            rail1.position.set(-0.2, height / 2, 0);
+            rail2.position.set(0.2, height / 2, 0);
+            ladderGroup.add(rail1, rail2);
+            
+            const rungGeo = new THREE.BoxGeometry(0.4, 0.02, 0.02);
+            const rungs = Math.max(5, Math.floor(height * 2));
+            for (let r = 0; r < rungs; r++) {
+                const rung = new THREE.Mesh(rungGeo, solidSteelMat);
+                rung.position.y = r * (height / rungs) + 0.2;
+                ladderGroup.add(rung);
+            }
+            ladderGroup.position.set(-(radius + 0.2), 0, 0);
+            group.add(ladderGroup);
+
+            const smartGroup = new THREE.Group();
+            smartGroup.visible = false;
+            
+            const sensor = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.3), upgradeMat);
+            sensor.position.set(0.5, height + 0.4, 0);
+            smartGroup.add(sensor);
+
+            const valve = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshStandardMaterial({color: 0xed8936}));
+            valve.position.set(0, height + 0.6, 0);
+            smartGroup.add(valve);
+
+            group.add(smartGroup);
+            smartGroups[index] = smartGroup;
+
+            addLabel(group.position.x, height + 1.5, group.position.z, `${tank.name} (${tank.capacity} KL)`, true);
+        }
+
+        function createIsoTank(tank, index, group) {
+            const length = tank.capacity === 50 ? 7.5 : 6.1;
+            const width = tank.capacity === 50 ? 2.7 : 2.44;
+            const height = tank.capacity === 50 ? 3.0 : 2.59;
+
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x718096, metalness: 0.5, roughness: 0.4, transparent: true, opacity: 0.35, depthWrite: false });
+            const shellMat = new THREE.MeshStandardMaterial({ color: 0xA0AEC0, transparent: true, opacity: 0.35, metalness: 0.2 });
+            const liquidMat = new THREE.MeshStandardMaterial({ color: 0x3182CE, transparent: true, opacity: 0.9, roughness: 0.08 });
+            const upgradeMat = new THREE.MeshStandardMaterial({ color: 0x48BB78 });
+
+            const frameGeo = new THREE.BoxGeometry(length + 0.3, height + 0.3, width + 0.3);
+            const frame = new THREE.Mesh(frameGeo, frameMat);
+            frame.position.y = height / 2;
+            group.add(frame);
+
+            const frameEdges = new THREE.LineSegments(new THREE.EdgesGeometry(frameGeo), new THREE.LineBasicMaterial({ color: 0x4a5568 }));
+            frameEdges.position.y = height / 2;
+            group.add(frameEdges);
+
+            const shellGeo = new THREE.BoxGeometry(length, height, width);
+            const shell = new THREE.Mesh(shellGeo, shellMat);
+            shell.position.y = height / 2;
+            group.add(shell);
+
+            const liquidGeo = new THREE.BoxGeometry(length * 0.96, height, width * 0.96);
+            liquidGeo.translate(0, height / 2, 0);
+            const liquid = new THREE.Mesh(liquidGeo, liquidMat);
+            liquid.scale.y = 0;
+            group.add(liquid);
+            tankLiquids[index] = { mesh: liquid, height: height };
+
+            const saddleGeo = new THREE.BoxGeometry(1.2, 0.3, width + 0.6);
+            const saddle1 = new THREE.Mesh(saddleGeo, frameMat);
+            const saddle2 = new THREE.Mesh(saddleGeo, frameMat);
+            saddle1.position.set(-length / 3, 0.15, 0);
+            saddle2.position.set(length / 3, 0.15, 0);
+            group.add(saddle1, saddle2);
+
+            const smartGroup = new THREE.Group();
+            smartGroup.visible = false;
+            const sensor = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), upgradeMat);
+            sensor.position.set(length / 2 - 0.5, height + 0.4, 0);
+            smartGroup.add(sensor);
+            group.add(smartGroup);
+            smartGroups[index] = smartGroup;
+
+            addLabel(group.position.x, height + 1.2, group.position.z, `${tank.name} (${tank.capacity} KL)`, true);
+        }
+
+        function createUndergroundTank(tank, index, group) {
+            const height = 6;
+            const radius = 1.3;
+
+            const steelMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.5, metalness: 0.2, transparent: true, opacity: 0.6 });
+            const liquidMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, transparent: true, opacity: 0.85, roughness: 0.1 });
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0xC53030 });
+
+            group.position.y = -height / 2 + 0.2;
+
+            const shellGeo = new THREE.CylinderGeometry(radius, radius, height, 24, 1, true);
+            const shell = new THREE.Mesh(shellGeo, steelMat);
+            shell.position.y = height / 2;
+            shell.material.side = THREE.DoubleSide;
+            group.add(shell);
+
+            const liquidGeo = new THREE.CylinderGeometry(radius * 0.98, radius * 0.98, height, 24);
+            liquidGeo.translate(0, height / 2, 0);
+            const liquid = new THREE.Mesh(liquidGeo, liquidMat);
+            liquid.scale.y = 0;
+            group.add(liquid);
+            tankLiquids[index] = { mesh: liquid, height: height };
+
+            const ringGeo = new THREE.TorusGeometry(radius + 0.02, 0.04, 6, 32);
+            [height * 0.33, height * 0.66].forEach(h => {
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2;
+                ring.position.y = h;
+                group.add(ring);
+            });
+
+            addLabel(group.position.x, 0.6, group.position.z, `${tank.name} (Underground ${tank.capacity} KL)`, true);
+        }
+
+        function addLabel(x, y, z, text, isTitle) {
+            const div = document.createElement('div');
+            div.className = isTitle ? 'label tank-title' : 'label';
+            div.textContent = text;
+            labelsLayer.appendChild(div);
+            labels.push({ element: div, position: new THREE.Vector3(x, y, z) });
+        }
+
+        function updateLabels() {
+            const w = viewportEl.clientWidth;
+            const h = viewportEl.clientHeight;
+            labels.forEach(lbl => {
+                const tempV = lbl.position.clone();
+                tempV.project(camera);
+                
+                if (Math.abs(tempV.z) > 1) {
+                    lbl.element.style.opacity = 0;
+                    return;
+                }
+
+                const x = (tempV.x * 0.5 + 0.5) * w;
+                const y = (tempV.y * -0.5 + 0.5) * h;
+
+                lbl.element.style.opacity = 1;
+                lbl.element.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+            updateLabels();
+        }
+
+        function resizeRenderer() {
+            if (!viewportEl) return;
+            const w = viewportEl.clientWidth;
+            const h = viewportEl.clientHeight;
+            renderer.setSize(w, h);
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+        }
+
+        function updateTankLevel(index, val) {
+            const tank = TANKS[index];
+            if (!tank) return;
+
+            const sliderParent = document.querySelector(`.tank-input[data-index="${index}"]`);
+            if (sliderParent) {
+                const slider = sliderParent.querySelector('input[type="range"]');
+                const numInput = sliderParent.querySelector('input[type="number"]');
+                if (slider) slider.value = val;
+                if (numInput) numInput.value = val;
+            }
+
+            const levelInput = document.getElementById(`stock-level-${index}`);
+            if (levelInput) levelInput.value = val;
+
+            let numericVal = parseFloat(val);
+            if (isNaN(numericVal)) numericVal = 0;
+            if (numericVal < 0) numericVal = 0;
+            if (numericVal > tank.capacity) numericVal = tank.capacity;
+
+            const fill = numericVal / tank.capacity;
+            const liquidData = tankLiquids[index];
+            if (liquidData && liquidData.mesh) {
+                liquidData.mesh.scale.y = fill;
+            }
+
+            updateSummary();
+        }
+
+        async function saveSnapshot() {
+            const operator = document.getElementById('operatorName')?.value.trim();
+            const shift = document.getElementById('shiftSelect')?.value;
+            if (!operator || !shift) {
+                alert("Operator and Shift are required.");
+                return;
+            }
+            const remarks = document.getElementById('remarksText')?.value || "";
+            const data = getStockData();
+            const total = data.reduce((s, d) => s + d.level, 0);
+            const ts = new Date();
+            const entry = {
+                operator,
+                shift,
+                remarks,
+                data,
+                total,
+                timestamp: ts.toISOString(),
+                dateTime: ts.toISOString(), // Auto-save date and time together
+                displayTime: ts.toLocaleString(),
+                createdAt: ts.getTime()
+            };
+            
+            // Save to Firebase if available, otherwise fallback to localStorage
+            if (checkFirebaseReady()) {
+                try {
+                    const { collection, addDoc, serverTimestamp } = window.firebaseDB;
+                    const entriesRef = collection(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES);
+                    await addDoc(entriesRef, {
+                        ...entry,
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    });
+                    // Real-time listener will update the UI automatically
+                } catch (error) {
+                    console.error("Error saving to Firebase:", error);
+                    alert("Error saving entry. Please try again.");
+                }
+            } else {
+                // Fallback to localStorage
+                const raw = localStorage.getItem(STORAGE_KEYS.HISTORY);
+                const history = raw ? JSON.parse(raw) : [];
+                history.unshift(entry);
+                localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history.slice(0, 200)));
+                renderHistory(history);
+            }
+            saveCurrentState();
+        }
+
+        function buildHistoryTable() {
+            if (checkFirebaseReady()) {
+                // Set up real-time listener for Firebase
+                setupFirebaseHistoryListener();
+            } else {
+                // Fallback to localStorage
+                const raw = localStorage.getItem(STORAGE_KEYS.HISTORY);
+                currentHistoryData = raw ? JSON.parse(raw) : [];
+                renderHistory(currentHistoryData);
+                const search = document.getElementById('historySearch');
+                if (search) {
+                    search.addEventListener('input', (e) => {
+                        renderHistory(currentHistoryData, e.target.value);
+                    });
+                }
+            }
+        }
+        
+        let currentHistoryData = [];
+        
+        function setupFirebaseHistoryListener() {
+            try {
+                const { collection, onSnapshot, query, orderBy } = window.firebaseDB;
+                const entriesRef = collection(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES);
+                const q = query(entriesRef, orderBy('createdAt', 'desc'));
+                
+                // Real-time listener
+                onSnapshot(q, (snapshot) => {
+                    currentHistoryData = [];
+                    snapshot.forEach((docSnap) => {
+                        const data = docSnap.data();
+                        currentHistoryData.push({
+                            id: docSnap.id,
+                            ...data,
+                            displayTime: data.displayTime || (data.dateTime ? new Date(data.dateTime).toLocaleString() : ''),
+                            timestamp: data.timestamp || data.dateTime || ''
+                        });
+                    });
+                    renderHistory(currentHistoryData);
+                }, (error) => {
+                    console.error("Error listening to Firebase:", error);
+                    // Fallback to localStorage
+                    const raw = localStorage.getItem(STORAGE_KEYS.HISTORY);
+                    currentHistoryData = raw ? JSON.parse(raw) : [];
+                    renderHistory(currentHistoryData);
+                });
+                
+                // Set up search listener (only once)
+                const search = document.getElementById('historySearch');
+                if (search) {
+                    // Remove existing listeners and add new one
+                    const newSearch = search.cloneNode(true);
+                    search.parentNode.replaceChild(newSearch, search);
+                    newSearch.addEventListener('input', (e) => {
+                        renderHistory(currentHistoryData, e.target.value);
+                    });
+                }
+            } catch (error) {
+                console.error("Error setting up Firebase listener:", error);
+                // Fallback to localStorage
+                const raw = localStorage.getItem(STORAGE_KEYS.HISTORY);
+                currentHistoryData = raw ? JSON.parse(raw) : [];
+                renderHistory(currentHistoryData);
+            }
+        }
+
+        function renderHistory(history, filter = "") {
+            const tbody = document.querySelector('#historyTable tbody');
+            if (!tbody) return;
+            const term = filter.toLowerCase();
+            const filteredHistory = history.filter(h => 
+                !term || 
+                h.operator?.toLowerCase().includes(term) || 
+                h.shift?.toLowerCase().includes(term) || 
+                h.remarks?.toLowerCase().includes(term) ||
+                h.displayTime?.toLowerCase().includes(term)
+            );
+            
+            tbody.innerHTML = filteredHistory.map(h => `
+                <tr data-entry-id="${h.id || ''}">
+                    <td>${h.displayTime || (h.dateTime ? new Date(h.dateTime).toLocaleString() : "")}</td>
+                    <td>${h.operator || ""}</td>
+                    <td>${h.shift || ""}</td>
+                    <td>${h.total?.toFixed ? h.total.toFixed(1) : h.total || ""}</td>
+                    <td>${h.remarks || ""}</td>
+                    <td>
+                        ${h.id ? `
+                            <button class="btn" style="padding: 6px 12px; font-size: 0.85rem; margin-right: 6px;" onclick="editEntry('${h.id}')">Edit</button>
+                            <button class="btn secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="deleteEntry('${h.id}')">Delete</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function exportCSV() {
+            let history = [];
+            if (checkFirebaseReady()) {
+                try {
+                    const { collection, getDocs, query, orderBy } = window.firebaseDB;
+                    const entriesRef = collection(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES);
+                    const q = query(entriesRef, orderBy('createdAt', 'desc'));
+                    const snapshot = await getDocs(q);
+                    snapshot.forEach((docSnap) => {
+                        const data = docSnap.data();
+                        history.push({
+                            ...data,
+                            displayTime: data.displayTime || (data.dateTime ? new Date(data.dateTime).toLocaleString() : '')
+                        });
+                    });
+                } catch (error) {
+                    console.error("Error fetching from Firebase:", error);
+                }
+            } else {
+                const raw = localStorage.getItem(STORAGE_KEYS.HISTORY);
+                history = raw ? JSON.parse(raw) : [];
+            }
+            
+            const header = ["Time","Operator","Shift","Total","Remarks"];
+            const lines = [header.join(",")].concat(history.map(h => [
+                `"${h.displayTime || ""}"`,
+                `"${h.operator || ""}"`,
+                `"${h.shift || ""}"`,
+                `"${h.total || ""}"`,
+                `"${(h.remarks || "").replace(/\"/g,'\"\"')}"`
+            ].join(",")));
+            const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "ccpl-history.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function importCSV(evt) {
+            const file = evt.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async e => {
+                const text = e.target.result;
+                const rows = text.split(/\r?\n/).slice(1).filter(Boolean);
+                
+                if (checkFirebaseReady()) {
+                    try {
+                        const { collection, addDoc, serverTimestamp } = window.firebaseDB;
+                        const entriesRef = collection(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES);
+                        for (const row of rows) {
+                            const cols = row.split(",");
+                            const entry = {
+                                displayTime: cols[0]?.replace(/"/g,""),
+                                operator: cols[1]?.replace(/"/g,""),
+                                shift: cols[2]?.replace(/"/g,""),
+                                total: parseFloat(cols[3]) || 0,
+                                remarks: cols[4]?.replace(/"/g,""),
+                                dateTime: new Date().toISOString(),
+                                timestamp: new Date().toISOString(),
+                                createdAt: serverTimestamp(),
+                                updatedAt: serverTimestamp()
+                            };
+                            await addDoc(entriesRef, entry);
+                        }
+                        alert("CSV imported successfully!");
+                    } catch (error) {
+                        console.error("Error importing to Firebase:", error);
+                        alert("Error importing CSV. Please try again.");
+                    }
+                } else {
+                    const history = rows.map(r => {
+                        const cols = r.split(",");
+                        return {
+                            displayTime: cols[0]?.replace(/"/g,""),
+                            operator: cols[1]?.replace(/"/g,""),
+                            shift: cols[2]?.replace(/"/g,""),
+                            total: parseFloat(cols[3]) || 0,
+                            remarks: cols[4]?.replace(/"/g,"")
+                        };
+                    });
+                    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
+                    renderHistory(history);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function buildProductionTable() {
+            const saved = localStorage.getItem(STORAGE_KEYS.PRODUCTION);
+            const data = saved ? JSON.parse(saved) : DEFAULT_PRODUCTION;
+            renderProduction(data);
+        }
+
+        function openEndTimeModal(index) {
+            const data = getProductionData();
+            const row = data[index];
+            if (!row) return;
+            
+            const modal = document.getElementById('endTimeModal');
+            const endTimeInput = document.getElementById('endTimeInput');
+            const endDateInput = document.getElementById('endDateInput');
+            
+            // Pre-fill with current endTime if exists
+            if (row.endTime) {
+                const [date, time] = row.endTime.split(' ');
+                if (date) endDateInput.value = date;
+                if (time) endTimeInput.value = time;
+            } else {
+                const now = new Date();
+                endDateInput.value = now.toISOString().split('T')[0];
+                endTimeInput.value = now.toTimeString().slice(0, 5);
+            }
+            
+            modal.dataset.index = index;
+            modal.classList.add('active');
+        }
+        
+        function closeEndTimeModal() {
+            document.getElementById('endTimeModal').classList.remove('active');
+        }
+        
+        function saveEndTime() {
+            const modal = document.getElementById('endTimeModal');
+            const index = parseInt(modal.dataset.index);
+            const endDate = document.getElementById('endDateInput').value;
+            const endTime = document.getElementById('endTimeInput').value;
+            
+            if (!endDate || !endTime) {
+                alert('Please enter both date and time');
+                return;
+            }
+            
+            const endTimeValue = `${endDate} ${endTime}`;
+            updateProductionField(index, 'endTime', endTimeValue);
+            closeEndTimeModal();
+        }
+        
+        function renderProduction(data) {
+            const tbody = document.querySelector('#productionTable tbody');
+            if (!tbody) return;
+            tbody.innerHTML = data.map((row, idx) => `
+                <tr>
+                    <td><input type="text" value="${row.reactor || ''}" onchange="updateProductionField(${idx}, 'reactor', this.value)"></td>
+                    <td><input type="text" value="${row.product || ''}" onchange="updateProductionField(${idx}, 'product', this.value)"></td>
+                    <td><input type="text" value="${row.batch || ''}" onchange="updateProductionField(${idx}, 'batch', this.value)"></td>
+                    <td><input type="text" value="${row.start || ''}" onchange="updateProductionField(${idx}, 'start', this.value)"></td>
+                    <td><input type="text" value="${row.expectedEnd || ''}" onchange="updateProductionField(${idx}, 'expectedEnd', this.value)"></td>
+                    <td>
+                        <button class="btn" style="padding: 6px 12px; font-size: 0.85rem;" onclick="openEndTimeModal(${idx})">
+                            ${row.endTime || 'Set End Time'}
+                        </button>
+                    </td>
+                    <td><input type="text" value="${row.duration || ''}" onchange="updateProductionField(${idx}, 'duration', this.value)"></td>
+                    <td><input type="text" value="${row.timeLeft || ''}" onchange="updateProductionField(${idx}, 'timeLeft', this.value)"></td>
+                    <td><input type="number" value="${row.qty || 0}" onchange="updateProductionField(${idx}, 'qty', this.value)"></td>
+                    <td><input type="text" value="${row.tank || ''}" onchange="updateProductionField(${idx}, 'tank', this.value)"></td>
+                    <td><input type="number" min="0" max="100" value="${row.progress || 0}" onchange="updateProductionField(${idx}, 'progress', this.value)"></td>
+                    <td>
+                        <select onchange="updateProductionField(${idx}, 'status', this.value)">
+                            <option ${row.status==="On Track"?"selected":""}>On Track</option>
+                            <option ${row.status==="Watch"?"selected":""}>Watch</option>
+                            <option ${row.status==="Delayed"?"selected":""}>Delayed</option>
+                        </select>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function saveProduction(data) {
+            localStorage.setItem(STORAGE_KEYS.PRODUCTION, JSON.stringify(data));
+        }
+
+        function getProductionData() {
+            const saved = localStorage.getItem(STORAGE_KEYS.PRODUCTION);
+            return saved ? JSON.parse(saved) : DEFAULT_PRODUCTION.slice();
+        }
+
+        function updateProductionField(index, field, value) {
+            const data = getProductionData();
+            if (!data[index]) return;
+            if (field === "progress") {
+                data[index].progress = Math.max(0, Math.min(100, parseFloat(value) || 0));
+            } else if (field === "qty") {
+                data[index].qty = parseFloat(value) || 0;
+            } else {
+                data[index][field] = value;
+            }
+            saveProduction(data);
+            renderProduction(data);
+        }
+
+        function toggleSmartMode() {
+            const btn = document.getElementById('smartToggle');
+            const isCurrentlyOn = btn.classList.contains('active');
+
+            smartGroups.forEach(g => {
+                if (g) g.visible = !isCurrentlyOn;
+            });
+
+            if (!isCurrentlyOn) {
+                btn.classList.add('active');
+                btn.innerHTML = "<span>&#9889; Systems Online</span>";
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = "<span>&#9889; Enable Smart Upgrade</span>";
+            }
+        }
+        
+        function getStockData() {
+            return TANKS.map((t, i) => {
+                const level = parseFloat(document.getElementById(`stock-level-${i}`)?.value || 0) || 0;
+                return {
+                    name: t.name,
+                    capacity: t.capacity,
+                    level: Math.min(Math.max(level, 0), t.capacity),
+                    material: document.getElementById(`stock-material-${i}`)?.value || "",
+                    grn: document.getElementById(`stock-grn-${i}`)?.value || "",
+                    date: document.getElementById(`stock-date-${i}`)?.value || ""
+                };
+            });
+        }
+
+        function updateSummary() {
+            const data = getStockData();
+            const totalStock = data.reduce((sum, d) => sum + d.level, 0);
+            const totalCapacity = data.reduce((sum, d) => sum + d.capacity, 0);
+            const usagePercentage = totalCapacity > 0 ? (totalStock / totalCapacity * 100) : 0;
+            const summary = document.getElementById('summaryText');
+            const snapshot = document.getElementById('snapshotText');
+            const msg = `Total Stock: ${totalStock.toFixed(1)} KL | Total Capacity: ${totalCapacity.toFixed(1)} KL | Usage: ${usagePercentage.toFixed(1)}%`;
+            summary.textContent = msg;
+            snapshot.textContent = msg;
+            saveCurrentState();
+        }
+
+        function saveCurrentState() {
+            const state = {
+                operator: document.getElementById('operatorName')?.value || "",
+                shift: document.getElementById('shiftSelect')?.value || "",
+                remarks: document.getElementById('remarksText')?.value || "",
+                data: getStockData(),
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem(STORAGE_KEYS.CURRENT, JSON.stringify(state));
+        }
+
+        function loadSavedState() {
+            const raw = localStorage.getItem(STORAGE_KEYS.CURRENT);
+            if (!raw) return;
+            try {
+                const state = JSON.parse(raw);
+                if (state.operator) document.getElementById('operatorName').value = state.operator;
+                if (state.shift) document.getElementById('shiftSelect').value = state.shift;
+                if (state.remarks) document.getElementById('remarksText').value = state.remarks;
+                if (Array.isArray(state.data)) {
+                    state.data.forEach((row, i) => {
+                        const lvl = document.getElementById(`stock-level-${i}`);
+                        const mat = document.getElementById(`stock-material-${i}`);
+                        const grn = document.getElementById(`stock-grn-${i}`);
+                        const dt = document.getElementById(`stock-date-${i}`);
+                        if (lvl) { lvl.value = row.level; updateTankLevel(i, row.level); }
+                        if (mat) mat.value = row.material || "";
+                        if (grn) grn.value = row.grn || "";
+                        if (dt && row.date) dt.value = row.date;
+                    });
+                }
+                updateSummary();
+            } catch (e) {
+                console.warn("Failed to load saved state", e);
+            }
+        }
+
+        function addWatermark(doc) {
+            try {
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const centerX = pageWidth / 2;
+                const centerY = pageHeight / 2;
+                
+                // Save current settings
+                const currentTextColor = doc.getTextColor();
+                const currentFontSize = doc.getFontSize();
+                const currentFont = doc.getFont();
+                
+                // Set watermark properties - light gray, large, bold
+                doc.setTextColor(220, 220, 220);
+                doc.setFontSize(50);
+                doc.setFont(undefined, 'bold');
+                
+                // Add watermark text (diagonal placement)
+                const text = "Cognizant Chemical Pvt. Ltd.";
+                const textWidth = doc.getTextWidth(text);
+                
+                // Place watermark in center with slight offset for diagonal effect
+                // Since jsPDF may not support rotation directly, we'll place it multiple times
+                doc.text(text, centerX - textWidth/2, centerY - 20);
+                doc.text(text, centerX - textWidth/2, centerY + 20);
+                
+                // Restore original settings
+                if (currentTextColor && typeof currentTextColor === 'object') {
+                    doc.setTextColor(currentTextColor.r || 0, currentTextColor.g || 0, currentTextColor.b || 0);
+                } else {
+                    doc.setTextColor(0, 0, 0);
+                }
+                doc.setFontSize(currentFontSize || 12);
+                if (currentFont && Array.isArray(currentFont)) {
+                    doc.setFont(currentFont[0], currentFont[1]);
+                }
+            } catch (e) {
+                // Fallback: simple watermark if advanced features not supported
+                doc.setTextColor(220, 220, 220);
+                doc.setFontSize(40);
+                doc.setFont(undefined, 'bold');
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                doc.text("Cognizant Chemical Pvt. Ltd.", pageWidth / 2, pageHeight / 2, { align: 'center' });
+                doc.setTextColor(0, 0, 0);
+            }
+        }
+
+        function pdfHeader(doc, title, subtitle) {
+            const blue = { r: 29, g: 78, b: 216 };
+            doc.setTextColor(blue.r, blue.g, blue.b);
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text("Cognizant Chemical Pvt. Ltd.", 14, 16);
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'normal');
+            doc.text(title, 14, 24);
+            if (subtitle) {
+                doc.setFontSize(10);
+                doc.text(subtitle, 14, 30);
+            }
+            doc.setDrawColor(blue.r, blue.g, blue.b);
+            doc.setLineWidth(0.5);
+            doc.line(14, 32, doc.internal.pageSize.getWidth() - 14, 32);
+            doc.setTextColor(0, 0, 0);
+        }
+
+        function downloadPDF() {
+            if (!window.jspdf) return alert("jsPDF not loaded");
+            const { jsPDF } = window.jspdf;
+            // Optimize for mobile viewing
+            const doc = new jsPDF({ orientation: "portrait", unit: 'mm', format: 'a4' });
+            const data = getStockData();
+
+            // Add watermark to all pages
+            addWatermark(doc);
+
+            pdfHeader(doc, "Daily Tank Stock Summary", `Generated: ${new Date().toLocaleString()}`);
+
+            const headers = ["Tank", "Cap (KL)", "Level (KL)", "Material", "GRN #", "Date"];
+            const colWidths = [25, 20, 20, 35, 30, 30];
+            let xPos = [14];
+            for (let i = 1; i < colWidths.length; i++) {
+                xPos.push(xPos[i-1] + colWidths[i-1]);
+            }
+            let y = 40;
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+
+            // Header row
+            doc.setFillColor(29, 78, 216);
+            doc.setTextColor(255, 255, 255);
+            doc.rect(12, y - 6, pageWidth - 24, 8, "F");
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'bold');
+            headers.forEach((h, idx) => {
+                if (xPos[idx] + colWidths[idx] < pageWidth - 12) {
+                    doc.text(h, xPos[idx], y);
+                }
+            });
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            y += 7;
+
+            // Data rows with text wrapping
+            data.forEach(row => {
+                if (y > pageHeight - 40) {
+                    doc.addPage();
+                    addWatermark(doc);
+                    pdfHeader(doc, "Daily Tank Stock Summary (cont.)", `Generated: ${new Date().toLocaleString()}`);
+                    y = 40;
+                    doc.setFillColor(29, 78, 216);
+                    doc.setTextColor(255, 255, 255);
+                    doc.rect(12, y - 6, pageWidth - 24, 8, "F");
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'bold');
+                    headers.forEach((h, idx) => {
+                        if (xPos[idx] + colWidths[idx] < pageWidth - 12) {
+                            doc.text(h, xPos[idx], y);
+                        }
+                    });
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont(undefined, 'normal');
+                    y += 7;
+                }
+                
+                doc.setFontSize(8);
+                const values = [
+                    String(row.name),
+                    String(row.capacity),
+                    row.level.toFixed(1),
+                    row.material || "-",
+                    row.grn || "-",
+                    row.date || "-"
+                ];
+                
+                values.forEach((val, idx) => {
+                    if (xPos[idx] + colWidths[idx] < pageWidth - 12) {
+                        const maxWidth = colWidths[idx] - 2;
+                        const text = doc.splitTextToSize(val, maxWidth);
+                        doc.text(text[0] || val.substring(0, 20), xPos[idx], y);
+                    }
+                });
+                y += 7;
+            });
+
+            // Calculate totals
+            const totalStock = data.reduce((sum, d) => sum + d.level, 0);
+            const totalCapacity = data.reduce((sum, d) => sum + d.capacity, 0);
+            const usagePercentage = totalCapacity > 0 ? (totalStock / totalCapacity * 100) : 0;
+
+            // Summary section
+            y += 8;
+            doc.setDrawColor(29, 78, 216);
+            doc.setLineWidth(0.5);
+            doc.line(14, y, doc.internal.pageSize.getWidth() - 14, y);
+            y += 8;
+
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(29, 78, 216);
+            doc.text("Summary Statistics", 14, y);
+            y += 8;
+
+            doc.setFontSize(11);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Total Stock Quantity: ${totalStock.toFixed(2)} KL`, 14, y);
+            y += 7;
+            doc.text(`Total Tank Capacity: ${totalCapacity.toFixed(2)} KL`, 14, y);
+            y += 7;
+            doc.text(`Usage Percentage: ${usagePercentage.toFixed(2)}%`, 14, y);
+            y += 7;
+            
+            // Visual usage indicator
+            const barWidth = 100;
+            const usageBarWidth = (usagePercentage / 100) * barWidth;
+            doc.setFillColor(220, 220, 220);
+            doc.rect(14, y - 4, barWidth, 6, "F");
+            if (usagePercentage > 0) {
+                const barColor = usagePercentage > 90 ? {r: 239, g: 68, b: 68} : 
+                                usagePercentage > 70 ? {r: 245, g: 158, b: 11} : 
+                                {r: 16, g: 185, b: 129};
+                doc.setFillColor(barColor.r, barColor.g, barColor.b);
+                doc.rect(14, y - 4, usageBarWidth, 6, "F");
+            }
+            doc.setFontSize(9);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`${usagePercentage.toFixed(1)}%`, 120, y);
+
+            // Level chart
+            const sorted = [...data].sort((a,b) => b.level - a.level);
+            const maxLevel = Math.max(...sorted.map(d => d.level), 1);
+            y += 15;
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(29, 78, 216);
+            doc.text("Level Chart (High to Low)", 14, y);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(0, 0, 0);
+            y += 7;
+            sorted.forEach((row, idx) => {
+                if (idx >= 10) return;
+                const barWidth = Math.max(5, (row.level / maxLevel) * 90);
+                doc.setFillColor(59, 130, 246);
+                doc.rect(14, y - 4, barWidth, 5, "F");
+                doc.setFontSize(9);
+                doc.text(row.name, 108, y);
+                doc.text(`${row.level.toFixed(1)} KL`, 140, y);
+                y += 7;
+            });
+            
+            // Set PDF properties for mobile viewing
+            doc.setProperties({
+                title: 'CCPL Tank Stock Summary',
+                subject: 'Daily Stock Report',
+                author: 'Cognizant Chemical Pvt. Ltd.',
+                keywords: 'stock, report, tank operations',
+                creator: 'CCPL Tank Operations System'
+            });
+
+            doc.save("tank-stock-summary.pdf");
+        }
+
+        function downloadProductionPDF() {
+            if (!window.jspdf) return alert("jsPDF not loaded");
+            const { jsPDF } = window.jspdf;
+            // Use portrait for better mobile viewing
+            const doc = new jsPDF({ orientation: "portrait", unit: 'mm', format: 'a4' });
+            const data = getProductionData();
+
+            // Add watermark
+            addWatermark(doc);
+
+            pdfHeader(doc, "Daily Production Entry", `Generated: ${new Date().toLocaleString()}`);
+
+            // Optimized column widths for mobile-friendly viewing
+            const headers = ["Reactor","Product","Batch","Start","Exp. End","End Time","Duration","Qty","Tank","Progress","Status"];
+            const colWidths = [18, 20, 22, 25, 25, 25, 18, 15, 15, 15, 18];
+            let xPos = [14];
+            for (let i = 1; i < colWidths.length; i++) {
+                xPos.push(xPos[i-1] + colWidths[i-1]);
+            }
+            
+            let y = 40;
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const pageWidth = doc.internal.pageSize.getWidth();
+
+            // Header row
+            doc.setFillColor(29, 78, 216);
+            doc.setTextColor(255, 255, 255);
+            doc.rect(12, y - 6, pageWidth - 24, 8, "F");
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'bold');
+            headers.forEach((h, idx) => {
+                if (xPos[idx] + colWidths[idx] < pageWidth - 12) {
+                    doc.text(h, xPos[idx], y);
+                }
+            });
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            y += 7;
+
+            // Data rows with word wrapping
+            data.forEach((row, rowIdx) => {
+                if (y > pageHeight - 30) {
+                    doc.addPage();
+                    addWatermark(doc);
+                    pdfHeader(doc, "Daily Production Entry (cont.)", `Generated: ${new Date().toLocaleString()}`);
+                    y = 40;
+                    doc.setFillColor(29, 78, 216);
+                    doc.setTextColor(255, 255, 255);
+                    doc.rect(12, y - 6, pageWidth - 24, 8, "F");
+                    doc.setFontSize(8);
+                    doc.setFont(undefined, 'bold');
+                    headers.forEach((h, idx) => {
+                        if (xPos[idx] + colWidths[idx] < pageWidth - 12) {
+                            doc.text(h, xPos[idx], y);
+                        }
+                    });
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont(undefined, 'normal');
+                    y += 7;
+                }
+                
+                doc.setFontSize(7);
+                const values = [
+                    String(row.reactor||""),
+                    String(row.product||""),
+                    String(row.batch||""),
+                    String(row.start||""),
+                    String(row.expectedEnd||""),
+                    String(row.endTime||"-"),
+                    String(row.duration||""),
+                    String(row.qty||""),
+                    String(row.tank||""),
+                    `${row.progress||0}%`,
+                    String(row.status||"")
+                ];
+                
+                values.forEach((val, idx) => {
+                    if (xPos[idx] + colWidths[idx] < pageWidth - 12) {
+                        // Truncate long text
+                        const maxWidth = colWidths[idx] - 2;
+                        const text = doc.splitTextToSize(val, maxWidth);
+                        doc.text(text[0] || val.substring(0, 15), xPos[idx], y);
+                    }
+                });
+                y += 8;
+            });
+            
+            // Set PDF properties for mobile viewing
+            doc.setProperties({
+                title: 'CCPL Production Entry',
+                subject: 'Daily Production Report',
+                author: 'Cognizant Chemical Pvt. Ltd.',
+                keywords: 'production, report, tank operations',
+                creator: 'CCPL Tank Operations System'
+            });
+            
+            doc.save("ccpl-production.pdf");
+        }
+
+        function downloadCombinedPDF() {
+            if (!window.jspdf) return alert("jsPDF not loaded");
+            const { jsPDF } = window.jspdf;
+            // Use portrait for better mobile viewing
+            const doc = new jsPDF({ orientation: "portrait", unit: 'mm', format: 'a4' });
+            const stock = getStockData();
+            const prod = getProductionData();
+
+            // Add watermark
+            addWatermark(doc);
+
+            pdfHeader(doc, "CCPL Stock & Production", `Generated: ${new Date().toLocaleString()}`);
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            let y = 36;
+            doc.setFontSize(13);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(29, 78, 216);
+            doc.text("Stock Summary", 14, y);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(0, 0, 0);
+            y += 7;
+            const sHeaders = ["Tank","Cap (KL)","Level (KL)","Material","GRN #","Date"];
+            const sColWidths = [25, 20, 20, 35, 30, 30];
+            let sX = [14];
+            for (let i = 1; i < sColWidths.length; i++) {
+                sX.push(sX[i-1] + sColWidths[i-1]);
+            }
+            doc.setFillColor(29, 78, 216);
+            doc.setTextColor(255, 255, 255);
+            doc.rect(12, y - 6, pageWidth - 24, 8, "F");
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'bold');
+            sHeaders.forEach((h,i) => {
+                if (sX[i] + sColWidths[i] < pageWidth - 12) {
+                    doc.text(h, sX[i], y);
+                }
+            });
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            y += 7;
+            stock.forEach(row => {
+                if (y > pageHeight - 40) {
+                    doc.addPage();
+                    addWatermark(doc);
+                    pdfHeader(doc, "CCPL Stock & Production", `Generated: ${new Date().toLocaleString()}`);
+                    y = 36;
+                }
+                doc.setFontSize(8);
+                const values = [
+                    String(row.name),
+                    String(row.capacity),
+                    row.level.toFixed(1),
+                    row.material||"-",
+                    row.grn||"-",
+                    row.date||"-"
+                ];
+                values.forEach((val, idx) => {
+                    if (sX[idx] + sColWidths[idx] < pageWidth - 12) {
+                        const maxWidth = sColWidths[idx] - 2;
+                        const text = doc.splitTextToSize(val, maxWidth);
+                        doc.text(text[0] || val.substring(0, 20), sX[idx], y);
+                    }
+                });
+                y += 7;
+            });
+            
+            // Stock summary statistics
+            const totalStock = stock.reduce((sum, d) => sum + d.level, 0);
+            const totalCapacity = stock.reduce((sum, d) => sum + d.capacity, 0);
+            const usagePercentage = totalCapacity > 0 ? (totalStock / totalCapacity * 100) : 0;
+            
+            y += 6;
+            doc.setDrawColor(29, 78, 216);
+            doc.setLineWidth(0.5);
+            doc.line(14, y, pageWidth - 14, y);
+            y += 8;
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(29, 78, 216);
+            doc.text("Stock Statistics:", 14, y);
+            y += 7;
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(9);
+            doc.text(`Total Stock Quantity: ${totalStock.toFixed(2)} KL`, 14, y);
+            y += 6;
+            doc.text(`Total Tank Capacity: ${totalCapacity.toFixed(2)} KL`, 14, y);
+            y += 6;
+            doc.text(`Usage Percentage: ${usagePercentage.toFixed(2)}%`, 14, y);
+
+            y += 12;
+            if (y > pageHeight - 40) { 
+                doc.addPage(); 
+                addWatermark(doc);
+                pdfHeader(doc, "CCPL Stock & Production", `Generated: ${new Date().toLocaleString()}`); 
+                y = 36; 
+            }
+            doc.setFontSize(13);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(29, 78, 216);
+            doc.text("Production Entries", 14, y);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(0, 0, 0);
+            y += 7;
+            const pHeaders = ["Reactor","Product","Batch","Start","Exp. End","End Time","Duration","Qty","Tank","Progress","Status"];
+            const pColWidths = [18, 20, 22, 25, 25, 25, 18, 15, 15, 15, 18];
+            let pX = [14];
+            for (let i = 1; i < pColWidths.length; i++) {
+                pX.push(pX[i-1] + pColWidths[i-1]);
+            }
+            doc.setFillColor(29, 78, 216);
+            doc.setTextColor(255, 255, 255);
+            doc.rect(12, y - 6, pageWidth - 24, 8, "F");
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'bold');
+            pHeaders.forEach((h,i) => {
+                if (pX[i] + pColWidths[i] < pageWidth - 12) {
+                    doc.text(h, pX[i], y);
+                }
+            });
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            y += 7;
+            prod.forEach(row => {
+                if (y > pageHeight - 30) {
+                    doc.addPage();
+                    addWatermark(doc);
+                    pdfHeader(doc, "CCPL Stock & Production", `Generated: ${new Date().toLocaleString()}`);
+                    y = 36;
+                }
+                
+                doc.setFontSize(7);
+                const values = [
+                    String(row.reactor||""),
+                    String(row.product||""),
+                    String(row.batch||""),
+                    String(row.start||""),
+                    String(row.expectedEnd||""),
+                    String(row.endTime||"-"),
+                    String(row.duration||""),
+                    String(row.qty||""),
+                    String(row.tank||""),
+                    `${row.progress||0}%`,
+                    String(row.status||"")
+                ];
+                
+                values.forEach((val, idx) => {
+                    if (pX[idx] + pColWidths[idx] < pageWidth - 12) {
+                        const maxWidth = pColWidths[idx] - 2;
+                        const text = doc.splitTextToSize(val, maxWidth);
+                        doc.text(text[0] || val.substring(0, 15), pX[idx], y);
+                    }
+                });
+                y += 8;
+            });
+            
+            // Set PDF properties
+            doc.setProperties({
+                title: 'CCPL Stock & Production',
+                subject: 'Combined Report',
+                author: 'Cognizant Chemical Pvt. Ltd.',
+                keywords: 'stock, production, report',
+                creator: 'CCPL Tank Operations System'
+            });
+
+            doc.save("ccpl-stock-production.pdf");
+        }
+
+        // Edit Entry Functions
+        let currentEditId = null;
+        let currentEditData = null;
+        
+        async function editEntry(entryId) {
+            if (!checkFirebaseReady()) {
+                alert("Firebase not initialized. Cannot edit entry.");
+                return;
+            }
+            
+            try {
+                const { collection, doc, getDoc } = window.firebaseDB;
+                const entryRef = doc(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES, entryId);
+                const entrySnap = await getDoc(entryRef);
+                
+                if (!entrySnap.exists()) {
+                    alert("Entry not found.");
+                    return;
+                }
+                
+                currentEditId = entryId;
+                currentEditData = entrySnap.data();
+                
+                // Populate edit form
+                document.getElementById('editOperator').value = currentEditData.operator || '';
+                document.getElementById('editShift').value = currentEditData.shift || '';
+                document.getElementById('editRemarks').value = currentEditData.remarks || '';
+                
+                // Populate stock data table
+                const tbody = document.getElementById('editStockDataBody');
+                tbody.innerHTML = (currentEditData.data || []).map((row, i) => `
+                    <tr>
+                        <td>${row.name}</td>
+                        <td>${row.capacity}</td>
+                        <td><input type="number" id="edit-level-${i}" value="${row.level}" min="0" max="${row.capacity}" style="width: 80px; padding: 4px;"></td>
+                        <td><input type="text" id="edit-material-${i}" value="${row.material || ''}" style="width: 100%; padding: 4px;"></td>
+                        <td><input type="text" id="edit-grn-${i}" value="${row.grn || ''}" style="width: 100%; padding: 4px;"></td>
+                        <td><input type="date" id="edit-date-${i}" value="${row.date || ''}" style="width: 100%; padding: 4px;"></td>
+                    </tr>
+                `).join('');
+                
+                // Show modal
+                document.getElementById('editEntryModal').classList.add('active');
+            } catch (error) {
+                console.error("Error loading entry for edit:", error);
+                alert("Error loading entry. Please try again.");
+            }
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editEntryModal').classList.remove('active');
+            currentEditId = null;
+            currentEditData = null;
+        }
+        
+        async function saveEditedEntry() {
+            if (!currentEditId || !checkFirebaseReady()) {
+                alert("Cannot save. Firebase not initialized.");
+                return;
+            }
+            
+            const operator = document.getElementById('editOperator').value.trim();
+            const shift = document.getElementById('editShift').value;
+            
+            if (!operator || !shift) {
+                alert("Operator and Shift are required.");
+                return;
+            }
+            
+            // Collect updated stock data
+            const updatedData = (currentEditData.data || []).map((row, i) => ({
+                name: row.name,
+                capacity: row.capacity,
+                level: parseFloat(document.getElementById(`edit-level-${i}`)?.value || 0),
+                material: document.getElementById(`edit-material-${i}`)?.value || '',
+                grn: document.getElementById(`edit-grn-${i}`)?.value || '',
+                date: document.getElementById(`edit-date-${i}`)?.value || ''
+            }));
+            
+            const total = updatedData.reduce((s, d) => s + d.level, 0);
+            const ts = new Date();
+            
+            try {
+                const { doc, updateDoc, serverTimestamp } = window.firebaseDB;
+                const entryRef = doc(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES, currentEditId);
+                
+                await updateDoc(entryRef, {
+                    operator,
+                    shift,
+                    remarks: document.getElementById('editRemarks').value || '',
+                    data: updatedData,
+                    total,
+                    dateTime: ts.toISOString(), // Update date/time automatically
+                    timestamp: ts.toISOString(),
+                    displayTime: ts.toLocaleString(),
+                    updatedAt: serverTimestamp()
+                });
+                
+                alert("Entry updated successfully!");
+                closeEditModal();
+                // Real-time listener will automatically update the UI
+            } catch (error) {
+                console.error("Error updating entry:", error);
+                alert("Error updating entry. Please try again.");
+            }
+        }
+        
+        async function deleteEntry(entryId) {
+            if (!checkFirebaseReady()) {
+                alert("Firebase not initialized. Cannot delete entry.");
+                return;
+            }
+            
+            if (!confirm("Are you sure you want to delete this entry? This action cannot be undone.")) {
+                return;
+            }
+            
+            try {
+                const { doc, deleteDoc } = window.firebaseDB;
+                const entryRef = doc(window.firebaseDB.db, FIREBASE_COLLECTIONS.STOCK_ENTRIES, entryId);
+                await deleteDoc(entryRef);
+                alert("Entry deleted successfully!");
+                // Real-time listener will automatically update the UI
+            } catch (error) {
+                console.error("Error deleting entry:", error);
+                alert("Error deleting entry. Please try again.");
+            }
+        }
+        
+        window.updateTankLevel = updateTankLevel;
+        window.toggleSmartMode = toggleSmartMode;
+        window.downloadPDF = downloadPDF;
+        window.handleLogin = handleLogin;
+        window.handleLogout = handleLogout;
+        window.setAllDatesToToday = setAllDatesToToday;
+        window.openEndTimeModal = openEndTimeModal;
+        window.closeEndTimeModal = closeEndTimeModal;
+        window.saveEndTime = saveEndTime;
+        window.editEntry = editEntry;
+        window.deleteEntry = deleteEntry;
+        window.closeEditModal = closeEditModal;
+        window.saveEditedEntry = saveEditedEntry;
+        window.exportCSV = exportCSV;
+        window.importCSV = importCSV;
+
+        window.addEventListener('resize', resizeRenderer);
+        
+        // Check authentication on load
+        if (checkAuth()) {
+            // Wait for Firebase to initialize before starting
+            waitForFirebase(() => {
+                init();
+                animate();
+            });
+        }
+
+    </script>
+</body>
+</html>
+
+

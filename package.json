@@ -1,0 +1,19 @@
+{
+  "name": "ccpl-tank-operations",
+  "version": "1.0.0",
+  "description": "Tank Operations Management System for Cognizant Chemical Pvt. Ltd.",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "tank",
+    "operations",
+    "management",
+    "chemical"
+  ],
+  "author": "Cognizant Chemical Pvt. Ltd.",
+  "license": "MIT"
+}
+
